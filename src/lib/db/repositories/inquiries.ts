@@ -221,3 +221,21 @@ export async function listSentMessagesBySeller(
   });
   return rows;
 }
+
+export type InquiryTotals = {
+  total: number;
+  fromBuyers: number;
+  fromSellers: number;
+  unread: number;
+};
+
+/** Platform-wide inquiry totals for the manager dashboard. */
+export async function countAllInquiries(): Promise<InquiryTotals> {
+  const [total, fromBuyers, fromSellers, unread] = await Promise.all([
+    prisma.inquiry.count(),
+    prisma.inquiry.count({ where: { initiatorRole: "BUYER" } }),
+    prisma.inquiry.count({ where: { initiatorRole: "SELLER" } }),
+    prisma.inquiry.count({ where: { readAt: null } }),
+  ]);
+  return { total, fromBuyers, fromSellers, unread };
+}

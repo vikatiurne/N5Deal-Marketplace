@@ -9,6 +9,7 @@ async function main() {
   const passwordHash = bcrypt.hashSync(PASSWORD, 10);
 
   // Wipe in FK-safe order so the seed is idempotent.
+  await prisma.auditLog.deleteMany();
   await prisma.inquiry.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.buyerProfile.deleteMany();
@@ -16,7 +17,7 @@ async function main() {
 
   // --- Users ---------------------------------------------------------------
 
-  await prisma.user.create({
+  const manager = await prisma.user.create({
     data: {
       email: "manager@n5deal.test",
       passwordHash,
@@ -443,8 +444,64 @@ async function main() {
     ],
   });
 
+  // --- Audit log: pre-existing moderation history ---------------------------
+  // Fresh entries are appended live by the manager console; these make
+  // /manager/audit meaningful on a fresh seed.
+
+  const auditSeeds = [
+    {
+      action: "ASSET_REMOVED" as const,
+      targetType: "ASSET" as const,
+      targetId: assets[15].id,
+      meta: {
+        label: assets[15].title,
+        from: "PUBLISHED",
+        to: "REMOVED",
+        reason: "licence renewal under review",
+      },
+    },
+    {
+      action: "USER_SUSPENDED" as const,
+      targetType: "USER" as const,
+      targetId: sellers[2].id,
+      meta: {
+        label: sellers[2].email,
+        from: "ACTIVE",
+        to: "SUSPENDED",
+        reason: "missing AML policy",
+      },
+    },
+    {
+      action: "ASSET_PAUSED" as const,
+      targetType: "ASSET" as const,
+      targetId: assets[16].id,
+      meta: {
+        label: assets[16].title,
+        from: "PUBLISHED",
+        to: "PAUSED",
+        reason: "audited financials outstanding",
+      },
+    },
+  ];
+
+  for (const entry of auditSeeds) {
+    await prisma.auditLog.create({
+      data: {
+        actorId: manager.id,
+        action: entry.action,
+        targetType: entry.targetType,
+        targetId: entry.targetId,
+        meta: JSON.stringify(entry.meta),
+        createdAt: new Date(
+          Date.now() - auditSeeds.indexOf(entry) * 86_400_000,
+        ),
+      },
+    });
+  }
+
   const counts = {
     users: await prisma.user.count(),
+    auditLogs: await prisma.auditLog.count(),
     buyerProfiles: await prisma.buyerProfile.count(),
     assets: await prisma.asset.count(),
     inquiries: await prisma.inquiry.count(),

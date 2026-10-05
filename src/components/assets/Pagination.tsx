@@ -10,11 +10,17 @@ interface PaginationProps {
   totalPages: number;
   /** Full current query string (without page) to preserve filters in links. */
   searchParams: Record<string, string | string[] | undefined>;
+  /** Route the links point at — keeps filters on the same list. */
+  basePath?: string;
 }
 
 const WINDOW = 2;
 
-function pageHref(page: number, searchParams: PaginationProps["searchParams"]) {
+function pageHref(
+  page: number,
+  searchParams: PaginationProps["searchParams"],
+  basePath: string,
+) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(searchParams)) {
     if (value === undefined) continue;
@@ -27,7 +33,7 @@ function pageHref(page: number, searchParams: PaginationProps["searchParams"]) {
   if (page === 1) params.delete("page");
   else params.set("page", String(page));
   const query = params.toString();
-  return query ? `/assets?${query}` : "/assets";
+  return query ? `${basePath}?${query}` : basePath;
 }
 
 function pageNumbers(page: number, totalPages: number): number[] {
@@ -48,6 +54,7 @@ export function Pagination({
   page,
   totalPages,
   searchParams,
+  basePath = "/assets",
 }: PaginationProps) {
   if (totalPages <= 1) return null;
 
@@ -66,7 +73,7 @@ export function Pagination({
       >
         {page > 1 ? (
           <Link
-            href={pageHref(page - 1, searchParams)}
+            href={pageHref(page - 1, searchParams, basePath)}
             aria-label="Previous page"
           >
             ← Prev
@@ -88,7 +95,7 @@ export function Pagination({
           {n === page ? (
             <span>{n}</span>
           ) : (
-            <Link href={pageHref(n, searchParams)}>{n}</Link>
+            <Link href={pageHref(n, searchParams, basePath)}>{n}</Link>
           )}
         </Button>
       ))}
@@ -100,7 +107,10 @@ export function Pagination({
         asChild={page < totalPages}
       >
         {page < totalPages ? (
-          <Link href={pageHref(page + 1, searchParams)} aria-label="Next page">
+          <Link
+            href={pageHref(page + 1, searchParams, basePath)}
+            aria-label="Next page"
+          >
             Next →
           </Link>
         ) : (

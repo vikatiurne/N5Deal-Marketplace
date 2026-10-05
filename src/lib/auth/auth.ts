@@ -32,6 +32,9 @@ async function verifyPassword(
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // Self-hosted (not Vercel): without this Auth.js rejects the request host in
+  // production builds with UntrustedHost, so login only works in `next dev`.
+  trustHost: true,
   pages: {
     signIn: "/login",
   },

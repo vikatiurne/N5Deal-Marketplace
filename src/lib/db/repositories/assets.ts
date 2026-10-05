@@ -1,7 +1,13 @@
 import type { Prisma, Asset as AssetRow } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
-import type { Asset, AssetStatus, LicenseType, Paged } from "@/types";
+import type {
+  Asset,
+  AssetStatus,
+  LicenseType,
+  Paged,
+  UserStatus,
+} from "@/types";
 
 function toDomain(row: AssetRow): Asset {
   return {
@@ -119,13 +125,16 @@ export async function findOwnedAsset(
 
 export type AssetStatusCounts = Record<AssetStatus, number>;
 
-/** Counts of the seller's own assets per status — one grouped query. */
+/**
+ * Counts of assets per status — one grouped query. Pass a sellerId for the
+ * seller dashboard, omit it for the platform-wide manager view.
+ */
 export async function countAssetsByStatus(
-  sellerId: string,
+  sellerId?: string,
 ): Promise<AssetStatusCounts> {
   const grouped = await prisma.asset.groupBy({
     by: ["status"],
-    where: { sellerId },
+    where: sellerId ? { sellerId } : {},
     _count: { _all: true },
   });
 
@@ -217,4 +226,55 @@ export async function updateAsset(
 ): Promise<Asset> {
   const row = await prisma.asset.update({ where: { id }, data });
   return toDomain(row);
+}
+
+export type ManagedAsset = Asset & {
+  seller: {
+    id: string;
+    displayName: string;
+    company: string | null;
+    status: UserStatus;
+  };
+};
+
+/**
+ * Platform-wide asset list for the manager console. Same filters as the public
+ * listing, plus the seller snapshot the moderation table shows.
+ */
+export async function listAssetsForManager(
+  filters: AssetFilters = {},
+): Promise<Paged<ManagedAsset>> {
+  const { items, total } = await listAssets(filters);
+  if (items.length === 0) return { items: [], total };
+
+  // One indexed lookup for the whole page instead of a join per row.
+  const sellers = await prisma.user.findMany({
+    where: { id: { in: [...new Set(items.map((a) => a.sellerId))] } },
+    select: { id: true, displayName: true, company: true, status: true },
+  });
+  const byId = new Map(sellers.map((s) => [s.id, s]));
+
+  return {
+    total,
+    items: items.map((asset) => {
+      const seller = byId.get(asset.sellerId);
+      return {
+        ...asset,
+        seller: {
+          id: asset.sellerId,
+          displayName: seller?.displayName ?? "Unknown seller",
+          company: seller?.company ?? null,
+          status: seller?.status ?? "DELETED",
+        },
+      };
+    }),
+  };
+}
+
+/** Newest assets first for the manager dashboard. */
+export async function listRecentAssetsForManager(
+  limit = 5,
+): Promise<ManagedAsset[]> {
+  const { items } = await listAssetsForManager({ pageSize: limit });
+  return items;
 }

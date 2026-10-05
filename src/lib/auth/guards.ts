@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth/auth";
+import { findAccountAccess } from "@/lib/db/repositories/users";
 import { ROLE_HOME, type SessionUser } from "@/lib/auth/types";
 import type { Role } from "@/types";
 
@@ -26,20 +27,28 @@ async function currentPath(): Promise<string> {
 
 /**
  * Server-side guard: returns the user or redirects to /login?next=...
- * Also re-checks account status — a JWT issued before a suspension
- * must not keep granting access.
+ *
+ * Role and status are re-read from the database instead of being trusted from
+ * the JWT: the token is minted at login, so without this a manager's suspension
+ * (or soft delete) would keep working until the cookie expired.
  */
 export async function requireUser(): Promise<SessionUser> {
-  const user = await getSession();
-  if (!user) {
+  const session = await getSession();
+  if (!session) {
     const path = await currentPath();
     const next = path !== "/" ? `?next=${encodeURIComponent(path)}` : "";
     redirect(`/login${next}`);
   }
-  if (user.status !== "ACTIVE") {
-    redirect(`/login?error=account_${user.status.toLowerCase()}`);
+
+  const account = await findAccountAccess(session.id);
+  if (!account) {
+    redirect("/login?error=account_deleted");
   }
-  return user;
+  if (account.status !== "ACTIVE") {
+    redirect(`/login?error=account_${account.status.toLowerCase()}`);
+  }
+
+  return { ...session, role: account.role, status: account.status };
 }
 
 /**

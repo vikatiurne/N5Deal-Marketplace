@@ -33,6 +33,24 @@ export const LicenseType = {
 } as const;
 export type LicenseType = (typeof LicenseType)[keyof typeof LicenseType];
 
+/** Closed set of manager moderation actions — mirrors the Prisma enum. */
+export const AuditAction = {
+  USER_SUSPENDED: "USER_SUSPENDED",
+  USER_REACTIVED: "USER_REACTIVED",
+  USER_SOFT_DELETED: "USER_SOFT_DELETED",
+  ASSET_PUBLISHED: "ASSET_PUBLISHED",
+  ASSET_PAUSED: "ASSET_PAUSED",
+  ASSET_REMOVED: "ASSET_REMOVED",
+} as const;
+export type AuditAction = (typeof AuditAction)[keyof typeof AuditAction];
+
+export const AuditTargetType = {
+  USER: "USER",
+  ASSET: "ASSET",
+} as const;
+export type AuditTargetType =
+  (typeof AuditTargetType)[keyof typeof AuditTargetType];
+
 /**
  * ISO country codes offered in filters and profile forms. Curated to the
  * markets the seed data and the public listing filters cover.
@@ -96,8 +114,31 @@ export interface Inquiry {
   createdAt: Date;
 }
 
+/** User without secrets — safe to hand to admin views and client components. */
+export type UserPreview = Omit<User, "passwordHash">;
+
 /** Paginated list result shared by repository list functions. */
 export interface Paged<T> {
   items: T[];
   total: number;
+}
+
+/**
+ * Append-only moderation trail. `meta` is a JSON-encoded string at rest and
+ * is parsed into `details` for the UI.
+ */
+export interface AuditEntry {
+  id: string;
+  actorId: string;
+  actorEmail: string;
+  actorDisplayName: string;
+  action: AuditAction;
+  targetType: AuditTargetType;
+  targetId: string;
+  /** Human-readable target snapshot — audit rows must stay readable after the
+   * target is renamed or (soft-)deleted. */
+  targetLabel: string;
+  meta: string | null;
+  details: Record<string, string> | null;
+  createdAt: Date;
 }

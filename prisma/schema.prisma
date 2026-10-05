@@ -35,6 +35,22 @@ enum LicenseType {
   OTHER
 }
 
+/// Moderation actions a manager can perform. Closed set — the audit log must
+/// never contain free-text actions.
+enum AuditAction {
+  USER_SUSPENDED
+  USER_REACTIVED
+  USER_SOFT_DELETED
+  ASSET_PUBLISHED
+  ASSET_PAUSED
+  ASSET_REMOVED
+}
+
+enum AuditTargetType {
+  USER
+  ASSET
+}
+
 model User {
   id          String     @id @default(cuid())
   email       String     @unique
@@ -49,6 +65,7 @@ model User {
   profile       BuyerProfile?
   assets        Asset[]
   inquiriesSent Inquiry[]
+  auditEntries  AuditLog[]
 }
 
 model BuyerProfile {
@@ -103,4 +120,23 @@ model Inquiry {
   @@index([buyerId])
   @@index([assetId])
   @@index([initiatorRole])
+}
+
+/// Append-only trail of manager moderation actions. Never updated or deleted by
+/// application code — `actorId` points at the manager who acted.
+model AuditLog {
+  id         String          @id @default(cuid())
+  actorId    String
+  action     AuditAction
+  targetType AuditTargetType
+  targetId   String
+  /// JSON-encoded string (SQLite has no JSON type), e.g. {"from":"ACTIVE"}.
+  meta       String?
+  createdAt  DateTime        @default(now())
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([targetType, targetId])
 }
