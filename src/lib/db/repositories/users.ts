@@ -87,6 +87,14 @@ export async function createUser(data: {
   return toDomain(row);
 }
 
+export async function updateUser(
+  id: string,
+  data: Partial<{ displayName: string; company: string | null }>,
+): Promise<User> {
+  const row = await prisma.user.update({ where: { id }, data });
+  return toDomain(row);
+}
+
 export async function updateUserStatus(
   id: string,
   status: UserStatus,

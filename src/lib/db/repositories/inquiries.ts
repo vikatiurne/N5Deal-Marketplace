@@ -1,7 +1,7 @@
 import type { Inquiry as InquiryRow } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
-import type { Inquiry } from "@/types";
+import type { Asset, Inquiry } from "@/types";
 
 function toDomain(row: InquiryRow): Inquiry {
   return {
@@ -54,4 +54,58 @@ export async function listInquiriesByAsset(
     orderBy: { createdAt: "desc" },
   });
   return rows.map(toDomain);
+}
+
+export async function countInquiriesByBuyer(buyerId: string): Promise<number> {
+  return prisma.inquiry.count({ where: { buyerId } });
+}
+
+/** Seller details a buyer is allowed to see — never the email or credentials. */
+export interface SellerSummary {
+  id: string;
+  displayName: string;
+  company: string | null;
+}
+
+export interface InquiryWithAsset extends Inquiry {
+  asset: Pick<
+    Asset,
+    | "id"
+    | "title"
+    | "licenseType"
+    | "jurisdiction"
+    | "price"
+    | "currency"
+    | "status"
+  >;
+  seller: SellerSummary;
+}
+
+/** Inquiries of one buyer joined with the asset and its seller, newest first. */
+export async function listInquiriesForBuyer(
+  buyerId: string,
+): Promise<InquiryWithAsset[]> {
+  const rows = await prisma.inquiry.findMany({
+    where: { buyerId },
+    orderBy: { createdAt: "desc" },
+    include: { asset: { include: { seller: true } } },
+  });
+
+  return rows.map((row) => ({
+    ...toDomain(row),
+    asset: {
+      id: row.asset.id,
+      title: row.asset.title,
+      licenseType: row.asset.licenseType,
+      jurisdiction: row.asset.jurisdiction,
+      price: row.asset.price,
+      currency: row.asset.currency,
+      status: row.asset.status,
+    },
+    seller: {
+      id: row.asset.seller.id,
+      displayName: row.asset.seller.displayName,
+      company: row.asset.seller.company,
+    },
+  }));
 }

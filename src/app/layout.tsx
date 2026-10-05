@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { Toaster } from "@/components/ui/toaster";
 
 import "./globals.css";
 
@@ -27,6 +28,7 @@ export default function RootLayout({
           {children}
         </main>
         <SiteFooter />
+        <Toaster />
       </body>
     </html>
   );

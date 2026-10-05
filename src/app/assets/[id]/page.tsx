@@ -15,6 +15,7 @@ import {
 import { formatPrice } from "@/lib/formatPrice";
 import { getSession } from "@/lib/auth/guards";
 import { findAssetById } from "@/lib/db/repositories/assets";
+import { findInquiry } from "@/lib/db/repositories/inquiries";
 import { findUserById } from "@/lib/db/repositories/users";
 
 export async function generateMetadata({
@@ -111,10 +112,12 @@ export default async function AssetDetailPage({
             </Link>
           </Button>
         )}
-        {role === "BUYER" && (
+        {role === "BUYER" && session && (
           <ContactSellerButton
+            assetId={asset.id}
             assetTitle={asset.title}
             sellerName={seller?.displayName ?? "the seller"}
+            alreadySent={Boolean(await findInquiry(asset.id, session.id))}
           />
         )}
         {isOwner && (
