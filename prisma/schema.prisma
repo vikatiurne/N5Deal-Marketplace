@@ -84,15 +84,23 @@ model Asset {
 }
 
 model Inquiry {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   assetId   String
   buyerId   String
+  /// Direction: BUYER = buyer contacted seller, SELLER = seller contacted buyer.
+  initiatorRole Role    @default(BUYER)
   message   String
-  createdAt DateTime @default(now())
+  /// Set by the receiving party (seller) when the inquiry is opened.
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
   buyer User  @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
-  @@unique([assetId, buyerId])
+  // One message per direction per (asset, buyer): a buyer inquiry and a seller
+  // reply about the same asset can coexist, but neither side can double-post.
+  @@unique([assetId, buyerId, initiatorRole])
   @@index([buyerId])
+  @@index([assetId])
+  @@index([initiatorRole])
 }

@@ -72,8 +72,12 @@ export async function upsertBuyerProfile(
 
 export interface ListBuyersFilters {
   q?: string;
-  jurisdiction?: string;
-  licenseType?: LicenseType;
+  /** Any-of match inside the JSON array column. */
+  jurisdiction?: string[];
+  licenseType?: LicenseType[];
+  /** Matches buyers whose budget range overlaps [budgetMin, budgetMax]. */
+  budgetMin?: number;
+  budgetMax?: number;
   page?: number;
   pageSize?: number;
 }
@@ -88,11 +92,47 @@ export async function listBuyers(
 ): Promise<
   Paged<BuyerProfile & { displayName: string; company: string | null }>
 > {
-  const { q, jurisdiction, licenseType, page = 1, pageSize = 20 } = filters;
+  const {
+    q,
+    jurisdiction,
+    licenseType,
+    budgetMin,
+    budgetMax,
+    page = 1,
+    pageSize = 20,
+  } = filters;
+
+  // Every profile-level condition goes into one array: sibling `profile: {is}`
+  // keys would overwrite each other, silently dropping filters.
+  const profileFilters: Prisma.BuyerProfileWhereInput[] = [];
+
+  if (jurisdiction && jurisdiction.length > 0) {
+    profileFilters.push({
+      OR: jurisdiction.map((code) => ({ jurisdictions: { contains: code } })),
+    });
+  }
+
+  if (licenseType && licenseType.length > 0) {
+    profileFilters.push({
+      OR: licenseType.map((code) => ({ licenseTypes: { contains: code } })),
+    });
+  }
+
+  // Overlap test: buyer.budgetMax >= budgetMin AND buyer.budgetMin <= budgetMax.
+  // Buyers who left their budget empty have NULL bounds and drop out.
+  if (budgetMin !== undefined) {
+    profileFilters.push({ budgetMax: { gte: budgetMin } });
+  }
+  if (budgetMax !== undefined) {
+    profileFilters.push({ budgetMin: { lte: budgetMax } });
+  }
 
   const where: Prisma.UserWhereInput = {
     role: "BUYER",
     status: "ACTIVE",
+    ...(profileFilters.length > 0
+      ? { profile: { is: { AND: profileFilters } } }
+      : {}),
     ...(q
       ? {
           OR: [
@@ -101,12 +141,6 @@ export async function listBuyers(
             { profile: { is: { description: { contains: q } } } },
           ],
         }
-      : {}),
-    ...(jurisdiction
-      ? { profile: { is: { jurisdictions: { contains: jurisdiction } } } }
-      : {}),
-    ...(licenseType
-      ? { profile: { is: { licenseTypes: { contains: licenseType } } } }
       : {}),
   };
 

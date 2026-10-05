@@ -103,6 +103,81 @@ export async function listAssetsBySeller(sellerId: string): Promise<Asset[]> {
   return rows.map(toDomain);
 }
 
+/**
+ * Ownership gate for every seller mutation — returns null instead of throwing
+ * so callers can answer "not yours" (403) instead of crashing (500).
+ */
+export async function findOwnedAsset(
+  assetId: string,
+  sellerId: string,
+): Promise<Asset | null> {
+  const row = await prisma.asset.findFirst({
+    where: { id: assetId, sellerId },
+  });
+  return row ? toDomain(row) : null;
+}
+
+export type AssetStatusCounts = Record<AssetStatus, number>;
+
+/** Counts of the seller's own assets per status — one grouped query. */
+export async function countAssetsByStatus(
+  sellerId: string,
+): Promise<AssetStatusCounts> {
+  const grouped = await prisma.asset.groupBy({
+    by: ["status"],
+    where: { sellerId },
+    _count: { _all: true },
+  });
+
+  const counts: AssetStatusCounts = {
+    DRAFT: 0,
+    PUBLISHED: 0,
+    PAUSED: 0,
+    REMOVED: 0,
+  };
+  for (const row of grouped) counts[row.status] = row._count._all;
+  return counts;
+}
+
+export type SellerAsset = Asset & { inquiryCount: number; unreadCount: number };
+
+/**
+ * Seller's own assets with how many buyer inquiries (and unread ones) each got.
+ * Counts come from grouped queries and are merged in JS — SQLite has no
+ * filtered aggregate in a single relation count.
+ */
+export async function listSellerAssets(
+  sellerId: string,
+): Promise<SellerAsset[]> {
+  const where = { initiatorRole: "BUYER" as const, asset: { sellerId } };
+
+  const [rows, totals, unread] = await Promise.all([
+    prisma.asset.findMany({
+      where: { sellerId },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.inquiry.groupBy({
+      by: ["assetId"],
+      where,
+      _count: { _all: true },
+    }),
+    prisma.inquiry.groupBy({
+      by: ["assetId"],
+      where: { ...where, readAt: null },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const totalBy = new Map(totals.map((g) => [g.assetId, g._count._all]));
+  const unreadBy = new Map(unread.map((g) => [g.assetId, g._count._all]));
+
+  return rows.map((row) => ({
+    ...toDomain(row),
+    inquiryCount: totalBy.get(row.id) ?? 0,
+    unreadCount: unreadBy.get(row.id) ?? 0,
+  }));
+}
+
 export async function createAsset(data: {
   sellerId: string;
   title: string;

@@ -1,24 +1,10 @@
 import { z } from "zod";
 
-import { LicenseType } from "@/types";
+import { JURISDICTIONS, LicenseType } from "@/types";
 
-/** ISO codes offered in buyer forms — mirrors the seed data and FilterBar. */
-export const JURISDICTION_OPTIONS = [
-  "LT",
-  "CY",
-  "MT",
-  "EE",
-  "PL",
-  "SE",
-  "FI",
-  "CZ",
-] as const;
-
-export type JurisdictionCode = (typeof JURISDICTION_OPTIONS)[number];
-
-const jurisdictionValues = [...JURISDICTION_OPTIONS] as [
-  JurisdictionCode,
-  ...JurisdictionCode[],
+const jurisdictionValues = [...JURISDICTIONS] as [
+  (typeof JURISDICTIONS)[number],
+  ...(typeof JURISDICTIONS)[number][],
 ];
 
 const licenseTypeValues = Object.values(LicenseType) as [

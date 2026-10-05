@@ -100,6 +100,7 @@ export async function createInquiry(input: unknown): Promise<ActionResult> {
     await createInquiryRecord({
       assetId: data.assetId,
       buyerId: user.id,
+      initiatorRole: "BUYER",
       message: data.message,
     });
   } catch (e) {

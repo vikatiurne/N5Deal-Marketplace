@@ -416,8 +416,31 @@ async function main() {
     data: inquirySeeds.map((i) => ({
       assetId: assets[i.assetIndex].id,
       buyerId: buyers[i.buyerIndex].id,
+      initiatorRole: "BUYER" as const,
       message: i.message,
     })),
+  });
+
+  // --- Seller → buyer messages (opposite direction of Inquiry) --------------
+
+  await prisma.inquiry.createMany({
+    data: [
+      {
+        assetId: assets[0].id,
+        buyerId: buyers[0].id,
+        initiatorRole: "SELLER" as const,
+        message:
+          "Happy to share the audited statements. Nordic Pay is profitable since 2021, 40k active accounts, full EEA passporting via the Lithuanian passporting regime.",
+        readAt: new Date(),
+      },
+      {
+        assetId: assets[7].id,
+        buyerId: buyers[1].id,
+        initiatorRole: "SELLER" as const,
+        message:
+          "The MiCA CASP application was submitted in Q1 and is still pending — the ART issuance framework is already in place.",
+      },
+    ],
   });
 
   const counts = {

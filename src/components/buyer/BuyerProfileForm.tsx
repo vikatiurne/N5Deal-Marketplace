@@ -12,8 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { updateBuyerProfile } from "@/server/buyer";
 import { cn } from "@/lib/utils";
-import { JURISDICTION_OPTIONS } from "@/lib/validation/buyer";
-import { LicenseType, type BuyerProfile } from "@/types";
+import { JURISDICTIONS, LicenseType, type BuyerProfile } from "@/types";
 
 const LICENSE_OPTIONS = Object.values(LicenseType);
 const DESCRIPTION_MIN = 20;
@@ -125,7 +124,7 @@ export function BuyerProfileForm({
               Jurisdictions of interest
             </legend>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
-              {JURISDICTION_OPTIONS.map((code) => (
+              {JURISDICTIONS.map((code) => (
                 <label
                   key={code}
                   className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"

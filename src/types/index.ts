@@ -33,6 +33,22 @@ export const LicenseType = {
 } as const;
 export type LicenseType = (typeof LicenseType)[keyof typeof LicenseType];
 
+/**
+ * ISO country codes offered in filters and profile forms. Curated to the
+ * markets the seed data and the public listing filters cover.
+ */
+export const JURISDICTIONS = [
+  "LT",
+  "CY",
+  "MT",
+  "EE",
+  "PL",
+  "SE",
+  "FI",
+  "CZ",
+] as const;
+export type Jurisdiction = (typeof JURISDICTIONS)[number];
+
 /** Plain domain objects — repositories return these, never Prisma rows. */
 export interface User {
   id: string;
@@ -73,7 +89,10 @@ export interface Inquiry {
   id: string;
   assetId: string;
   buyerId: string;
+  /** BUYER: buyer → seller. SELLER: seller → buyer. */
+  initiatorRole: Role;
   message: string;
+  readAt: Date | null;
   createdAt: Date;
 }
 
