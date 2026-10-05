@@ -10,7 +10,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -48,6 +50,7 @@
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

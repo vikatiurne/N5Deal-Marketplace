@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { AiInterpretationBanner } from "@/components/assets/AiInterpretationBanner";
 import { AssetCard } from "@/components/assets/AssetCard";
 import { EmptyState } from "@/components/assets/EmptyState";
 import { FilterBar } from "@/components/assets/FilterBar";
 import { Pagination } from "@/components/assets/Pagination";
+import { SmartSearchBar } from "@/components/assets/SmartSearchBar";
 import { listAssets } from "@/lib/db/repositories/assets";
 import { assetFiltersSchema } from "@/lib/validation/assets";
 
@@ -66,6 +68,10 @@ export default async function AssetsPage({
             : `${total} published ${total === 1 ? "asset" : "assets"}`}
         </p>
       </div>
+
+      <SmartSearchBar />
+
+      <AiInterpretationBanner />
 
       <FilterBar />
 
