@@ -1,0 +1,407 @@
+# Cline Rules — N5Deal Marketplace (Test Assignment)
+
+Активируй эти правила в начале каждой сессии. Если что-то противоречит
+текущей задаче — спроси пользователя, не угадывай.
+
+---
+
+## КРИТИЧНО: Workflow редактирования файлов
+
+### Всегда replace_in_file, никогда write_to_file для существующих файлов
+
+**Правило:** любые правки существующих файлов — только через `replace_in_file`
+(точечные изменения). Это открывает diff-редактор VSCode, где пользователь
+видит старые и новые строки рядом и сам решает сохранить.
+
+**Запрещено:** `write_to_file` для перезаписи существующих файлов без явной
+команды пользователя. `write_to_file` разрешён только для **новых** файлов,
+которых ещё нет в проекте.
+
+**Исключение:** если файл переписывается полностью (рефакторинг модуля) —
+спроси: «Переписать целиком или через diff?»
+
+### Формат запроса на изменение
+
+Перед каждой правкой пиши в чате:
+
+1. **Какой файл:** `src/server/buyer.ts`
+2. **Что меняешь:** одной строкой («добавляю createInquiry server action»)
+3. **Зачем:** одной строкой
+
+Затем **вызови `replace_in_file`** — Cline откроет diff-редактор.
+
+### После применения
+
+- Пользователь сам нажимает **Save** в diff-редакторе
+- Ты **не подтверждаешь** «сохранено» — ждёшь сигнала
+- После сохранения — короткий отчёт: «✅ buyer.ts — добавлен createInquiry»
+
+### Один файл за раз
+
+- Не запускай `replace_in_file` для нескольких файлов в одном сообщении
+- Сделал один → подождал → следующий
+
+### Не трогай файлы без запроса
+
+- Задача «поменяй X в Y.ts» → меняешь **только** Y.ts
+- Заметил проблему в Z.ts — **скажи в чате**, не правь
+- Хочешь улучшить попутно — **спроси разрешения** отдельно
+
+### Если сборка/тесты упали после правки
+
+- Не правь сам — покажи ошибку
+- Предложи исправление
+- Запусти `replace_in_file` после подтверждения
+
+### Откат
+
+Если пользователь просит откатить — открой diff, покажи обратные изменения,
+примени после подтверждения.
+
+---
+
+## О проекте
+
+N5Deal Marketplace — тестовое задание для вакансии Product Engineer (Full Stack).
+Мини-маркетплейс для FinTech/M&A активов с тремя ролями:
+
+- **Buyer** — ищет и покупает лицензированные компании
+- **Seller** — публикует активы, работает с входящими запросами
+- **Manager** — модерация платформы (users, assets, audit)
+
+Это **демо-проект для оценки**, а не продакшн. Приоритеты:
+работающее приложение > красивый код > покрытие тестами.
+НО: качество данных и архитектурные решения оцениваются отдельно.
+
+### Что оценивают (не забывай про это)
+
+- Working app, не статические экраны
+- State survives refresh (персистентность обязательна)
+- Достаточно demo data
+- UX quality
+- ARCHITECTURE.md с обоснованием решений
+- Бонус: AI features (smart search)
+
+### Чего НЕ делать
+
+- Не воспроизводи n5deal.com 1:1 — только визуальный референс
+- Не добавляй фичи, которых нет в текущем task-файле
+- Не рефактори то, что не сломано
+- Не «улучшай» файл, который тебя не просили трогать
+
+---
+
+## Стек (уже решено — не обсуждай)
+
+| Слой       | Выбор                                            |
+| ---------- | ------------------------------------------------ |
+| Framework  | Next.js 15 App Router + TypeScript (strict)      |
+| DB         | Prisma + SQLite (dev), swapable to Postgres      |
+| Auth       | Auth.js (NextAuth v5), Credentials, JWT sessions |
+| UI         | Tailwind + shadcn/ui                             |
+| Validation | Zod — ВСЕ входные данные                         |
+| Tests      | Vitest (domain layer)                            |
+| AI         | OpenAI или Anthropic API (smart search)          |
+| Deploy     | Vercel                                           |
+
+Не предлагай альтернативы без веской причины. Если считаешь, что
+выбор неверный — скажи в чате, но НЕ меняй сам.
+
+---
+
+## Структура проекта
+
+n5deal-marketplace/
+├── prisma/
+│ ├── schema.prisma
+│ └── seed.ts
+├── src/
+│ ├── app/ # Next.js App Router
+│ │ ├── (public)/ # /assets, /assets/[id]
+│ │ ├── buyer/ # /buyer/_
+│ │ ├── seller/ # /seller/_
+│ │ ├── manager/ # /manager/\*
+│ │ ├── api/ # route handlers (smart-search)
+│ │ ├── login/
+│ │ ├── register/
+│ │ ├── layout.tsx
+│ │ ├── error.tsx
+│ │ └── not-found.tsx
+│ ├── components/ # shared UI (не shadcn)
+│ │ └── ui/ # shadcn primitives
+│ ├── lib/
+│ │ ├── db/
+│ │ │ ├── prisma.ts # singleton
+│ │ │ └── repositories/ # users.ts, assets.ts, ...
+│ │ ├── auth/ # auth.ts, guards.ts, types.ts
+│ │ ├── validation/ # Zod schemas
+│ │ ├── ai/ # smartSearch.ts
+│ │ └── utils.ts
+│ ├── server/ # server actions по ролям
+│ │ ├── buyer.ts
+│ │ ├── seller.ts
+│ │ └── manager.ts
+│ └── types/ # next-auth.d.ts
+├── docs/
+│ ├── tasks/ # task-файлы от пользователя
+│ ├── ARCHITECTURE.md
+│ └── DEMO.md
+├── middleware.ts
+├── .env.example
+└── README.md
+
+## Архитектурные правила (жёсткие)
+
+### 1. Слой БД — только через repositories
+
+Компоненты и server actions НИКОГДА не вызывают `prisma.*` напрямую.
+Все запросы — через `lib/db/repositories/*.ts`. Репозитории возвращают
+**plain domain objects**, не Prisma rows.
+
+```ts
+// ✅ правильно
+import { listAssets } from '@/lib/db/repositories/assets';
+const { items, total } = await listAssets(filters);
+
+// ❌ запрещено
+import { prisma } from '@/lib/db/prisma';
+const assets = await prisma.asset.findMany(...);
+```
+2. Валидация — только через Zod
+Все входные данные (формы, server actions, API routes) парсятся через
+Zod-схемы из lib/validation/. Никаких ручных проверок типа
+if (!email.includes('@')).
+
+3. Auth guards обязательны
+Каждая защищённая страница и каждый server action начинается с:
+
+requireUser() или requireRole('BUYER' | 'SELLER' | 'MANAGER')
+
+Никогда не полагайся только на middleware — проверяй и в action.
+
+4. Auth.js v5 — JWT sessions
+Сессия в JWT-токене, не в БД. В токене: id, role, status.
+SUSPENDED/DELETED users не должны получать сессию.
+
+5. Server actions > REST
+Мутации — через server actions в src/server/<role>.ts.
+REST route handlers только для: AI smart-search, потенциальных webhooks.
+После мутации — revalidatePath() на затронутых путях.
+
+6. Enum через const object
+Prisma enum — можно. TypeScript enum — запрещён (erasableSyntaxOnly).
+Для не-Prisma enum используй:
+
+ts
+export const AssetStatus = {
+  DRAFT: 'DRAFT',
+  PUBLISHED: 'PUBLISHED',
+  PAUSED: 'PAUSED',
+  REMOVED: 'REMOVED',
+} as const;
+export type AssetStatus = typeof AssetStatus[keyof typeof AssetStatus];
+7. Inquiry — уникальность
+@@unique([assetId, buyerId]) — один запрос на актив от одного покупателя.
+Server action ловит P2002 и возвращает понятную ошибку, не 500.
+
+Работа с задачами
+Task-файлы лежат в docs/tasks/. Всегда:
+
+Прочитай docs/tasks/00-CONTEXT.md первым
+
+Затем прочитай текущий task-файл
+
+Выполни только то, что в нём написано
+
+Дойди до Definition of Done
+
+Выведи summary в формате из task-файла
+
+Остановись — не начинай следующий task без команды
+
+Формат summary после задачи
+text
+## Task NN — <название>
+
+### Files created
+- path — purpose
+
+### Files modified
+- path — what changed
+
+### How to verify
+- commands
+- URL to open
+- expected result
+
+### Assumptions / open questions
+- ...
+Проверки после каждого изменения
+Запусти из корня проекта:
+
+bash
+npm run lint          # ESLint, должен быть чистый
+npm run build         # проверяет типы во всём проекте
+npm test              # Vitest (если есть тесты на этот модуль)
+Если что-то упало — не правь сам, покажи ошибку и предложи исправление.
+
+Соглашения по коду
+Именование
+Компоненты: PascalCase.tsx (AssetCard.tsx, FilterBar.tsx)
+
+Хуки: useCamelCase.ts (useSmartSearch.ts)
+
+Утилиты: camelCase.ts (formatPrice.ts)
+
+Типы: PascalCase (Asset, BuyerProfile, Inquiry)
+
+Константы: SCREAMING_SNAKE_CASE
+
+Server actions: verbNoun (createInquiry, updateBuyerProfile)
+
+Языки
+UI: английский (целевая аудитория — международный fintech)
+
+Код: английский (переменные, функции, комментарии)
+
+Комментарии: только там, где логика неочевидна. Не комментируй
+очевидное (// increment i)
+
+Стили
+Tailwind классы через cn() из @/lib/utils
+
+Компоненты shadcn — из @/components/ui/*, не пиши свои Button/Card
+
+Никаких inline-стилей, кроме случаев, где Tailwind не справляется
+
+Импорты
+Абсолютные пути через @/ alias
+
+Порядок: react → next → external → @/lib → @/components → relative
+
+Никаких default exports для компонентов страниц (только named)
+
+Работа с Prisma
+Схема: prisma/schema.prisma
+
+Клиент: singleton в src/lib/db/prisma.ts (dev-safe pattern)
+
+Миграции: npx prisma migrate dev --name <name>
+
+Сид: npm run db:seed
+
+Studio: npx prisma studio
+
+НЕ коммить *.db, dev.db — они в .gitignore
+
+НЕ меняй схему без task-файла, который это требует
+
+JSON-поля в SQLite
+SQLite не поддерживает массивы. Используем String + JSON.parse/stringify
+в repo layer. В domain-объекте всегда массив. Это осознанный trade-off,
+он описан в ARCHITECTURE.md.
+
+Работа с AI-функциями
+Smart search
+Всегда парси ответ LLM через Zod перед использованием
+
+Никогда не доверяй raw output
+
+Fallback: если LLM вернул мусор → обычный keyword-поиск по q=
+
+Rate limit: 10 req/min/session (in-memory Map)
+
+Не отправляй PII в LLM — только текст запроса пользователя
+
+Общее
+AI используется как ускоритель, но код всегда проверяется
+
+Если AI сгенерировал код, который ты не понимаешь — не коммить,
+разберись или упрости
+
+Коммуникация
+Отвечай на украинском 
+
+Поясняй, что делаешь и почему
+
+При неопределённости — спроси, не угадывай
+
+После завершения задачи — краткое summary по формату выше
+
+Не расписывай очевидное, будь краток
+
+Чего НЕ делать (жёсткие запреты)
+❌ Не используй write_to_file для существующих файлов
+
+❌ Не правь файлы вне текущего task-файла
+
+❌ Не добавляй фичи, которых нет в task-файле
+
+❌ Не вызывай prisma.* из компонентов
+
+❌ Не пропускай Zod-валидацию входных данных
+
+❌ Не полагайся только на middleware для авторизации
+
+❌ Не используй TypeScript enum (только const object)
+
+❌ Не пиши свои Button/Card/Badge — используй shadcn/ui
+
+❌ Не коммить node_modules, .next, dist, *.db, .env
+
+❌ Не меняй стек без явного разрешения
+
+❌ Не начинай следующий task, пока не закрыт текущий
+
+❌ Не «улучшай» код, который тебя не просили трогать
+
+❌ Не создавай новый репозиторий/файл, если можно расширить существующий
+
+Полезные паттерны
+Server action с guards + Zod
+ts
+'use server';
+import { requireRole } from '@/lib/auth/guards';
+import { inquirySchema } from '@/lib/validation/inquiry';
+import { createInquiry } from '@/lib/db/repositories/inquiries';
+import { revalidatePath } from 'next/cache';
+
+export async function createInquiryAction(input: unknown) {
+  const user = await requireRole('BUYER');
+  const data = inquirySchema.parse(input);
+  try {
+    await createInquiry({ buyerId: user.id, ...data });
+  } catch (e) {
+    if (isPrismaUniqueError(e)) {
+      return { ok: false, error: 'Inquiry already sent' };
+    }
+    throw e;
+  }
+  revalidatePath('/buyer/inquiries');
+  revalidatePath(`/assets/${data.assetId}`);
+  return { ok: true };
+}
+Zod schema для фильтров из URL
+ts
+export const assetFiltersSchema = z.object({
+  licenseType: z.array(z.nativeEnum(LicenseType)).optional(),
+  jurisdiction: z.array(z.string().length(2)).optional(),
+  priceMin: z.coerce.number().int().positive().optional(),
+  priceMax: z.coerce.number().int().positive().optional(),
+  q: z.string().max(200).optional(),
+  sort: z.enum(['newest', 'price_asc', 'price_desc']).default('newest'),
+  page: z.coerce.number().int().min(1).default(1),
+});
+Repository — единая точка доступа к БД
+ts
+// lib/db/repositories/assets.ts
+export async function listAssets(filters: AssetFilters) {
+  const where = buildWhere(filters);
+  const [items, total] = await Promise.all([
+    prisma.asset.findMany({ where, skip, take, orderBy }),
+    prisma.asset.count({ where }),
+  ]);
+  return { items: items.map(toDomain), total };
+}
+Активируй эти правила в начале каждой сессии.
+Если что-то неясно или противоречит task-файлу — спроси пользователя.
