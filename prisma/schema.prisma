@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  SELLER
+  MANAGER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AssetStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  REMOVED
+}
+
+enum LicenseType {
+  EMI
+  PI
+  MICA_CASP
+  VASP
+  BANK
+  OTHER
+}
+
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  passwordHash String
+  role        Role
+  status      UserStatus @default(ACTIVE)
+  displayName String
+  company     String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  profile       BuyerProfile?
+  assets        Asset[]
+  inquiriesSent Inquiry[]
+}
+
+model BuyerProfile {
+  userId       String @id
+  // SQLite has no array type: JSON-encoded string, parsed in the repo layer.
+  jurisdictions String
+  licenseTypes  String
+  budgetMin     Int?
+  budgetMax     Int?
+  description   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Asset {
+  id            String      @id @default(cuid())
+  sellerId      String
+  title         String
+  licenseType   LicenseType
+  jurisdiction  String
+  price         Int?
+  currency      String      @default("EUR")
+  description   String
+  status        AssetStatus @default(DRAFT)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  seller    User      @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  inquiries Inquiry[]
+
+  @@index([status])
+  @@index([sellerId])
+}
+
+model Inquiry {
+  id        String   @id @default(cuid())
+  assetId   String
+  buyerId   String
+  message   String
+  createdAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  buyer User  @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, buyerId])
+  @@index([buyerId])
+}
