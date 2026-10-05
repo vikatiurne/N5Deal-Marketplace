@@ -1,5 +1,9 @@
 import Link from "next/link";
 
+import { logoutAction } from "@/server/auth";
+import { Button } from "@/components/ui/button";
+import { getSession } from "@/lib/auth/guards";
+import { ROLE_HOME } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 
 type Role = "BUYER" | "SELLER" | "MANAGER";
@@ -9,26 +13,30 @@ interface NavItem {
   label: string;
   /** Roles that see this link; null means public (everyone sees it). */
   roles: Role[] | null;
+  /** auth === false → only shown to logged-out visitors. */
+  auth?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/assets", label: "Browse assets", roles: null },
-  { href: "/buyer", label: "For buyers", roles: ["BUYER"] },
-  { href: "/seller", label: "For sellers", roles: ["SELLER"] },
-  { href: "/manager", label: "Manager", roles: ["MANAGER"] },
-  { href: "/login", label: "Sign in", roles: null },
-  { href: "/register", label: "Register", roles: null },
+  { href: ROLE_HOME.BUYER, label: "For buyers", roles: ["BUYER"] },
+  { href: ROLE_HOME.SELLER, label: "For sellers", roles: ["SELLER"] },
+  { href: ROLE_HOME.MANAGER, label: "Manager", roles: ["MANAGER"] },
+  { href: "/login", label: "Sign in", roles: null, auth: false },
+  { href: "/register", label: "Register", roles: null, auth: false },
 ];
 
-// Placeholder until auth lands in task 03 — the shell renders as a guest.
-const currentRole: Role | null = null;
+export async function SiteHeader() {
+  const session = await getSession();
+  const currentRole = session?.status === "ACTIVE" ? session.role : null;
 
-export function SiteHeader() {
-  const visibleItems = NAV_ITEMS.filter(
-    (item) =>
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    if (item.auth === false) return currentRole === null;
+    return (
       item.roles === null ||
-      (currentRole !== null && item.roles.includes(currentRole)),
-  );
+      (currentRole !== null && item.roles.includes(currentRole))
+    );
+  });
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
@@ -52,6 +60,18 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          {currentRole !== null && (
+            <form action={logoutAction}>
+              <Button
+                type="submit"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Logout
+              </Button>
+            </form>
+          )}
         </nav>
       </div>
     </header>

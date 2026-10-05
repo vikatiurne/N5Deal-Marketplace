@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getSession } from "@/lib/auth/guards";
+import { ROLE_HOME } from "@/lib/auth/types";
 
 const ROLES = [
   {
@@ -33,7 +36,13 @@ const ROLES = [
   },
 ] as const;
 
-export default function Home() {
+export default async function Home() {
+  // Logged-in users go straight to their role home (task 03, deliverable 7).
+  const session = await getSession();
+  if (session && session.status === "ACTIVE") {
+    redirect(ROLE_HOME[session.role]);
+  }
+
   return (
     <div className="flex flex-col gap-10">
       <section className="flex flex-col items-start gap-4">
@@ -52,6 +61,9 @@ export default function Home() {
             <Link href="/assets">Browse assets</Link>
           </Button>
           <Button variant="outline" asChild>
+            <Link href="/login">Login</Link>
+          </Button>
+          <Button variant="ghost" asChild>
             <Link href="/register">Create account</Link>
           </Button>
         </div>
