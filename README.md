@@ -153,7 +153,8 @@ so `npm test` never touches `prisma/dev.db`. See
    it would overwrite demo edits. Re-seed only when you want a fresh dataset:
    point a local `DATABASE_URL` at Neon and run it once.
 5. **Deploy:** `npx vercel --prod` (the directory is already `vercel link`ed),
-   or push to `main` and let Vercel's Git integration build it.
+   or push to `dev` and let Vercel's Git integration build it (the connected
+   repository and production branch are both `dev`).
 6. **Post-deploy check:** guest → `/buyer` redirects to `/login`; buyer and
    manager sign in and load their dashboards; `seller3@n5deal.test` is refused
    with `account_suspended`; `/assets` shows 20 published listings from Neon.
