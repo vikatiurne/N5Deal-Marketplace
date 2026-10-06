@@ -12,28 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-const DEMO_ACCOUNTS: Array<{
-  role: "Manager" | "Seller" | "Buyer";
-  email: string;
-  password: string;
-  note?: string;
-}> = [
-  { role: "Manager", email: "manager@n5deal.test", password: "password123" },
-  { role: "Seller", email: "seller1@n5deal.test", password: "password123" },
-  { role: "Seller", email: "seller2@n5deal.test", password: "password123" },
-  {
-    role: "Seller",
-    email: "seller3@n5deal.test",
-    password: "password123",
-    note: "suspended",
-  },
-  { role: "Buyer", email: "buyer1@n5deal.test", password: "password123" },
-  { role: "Buyer", email: "buyer2@n5deal.test", password: "password123" },
-  { role: "Buyer", email: "buyer3@n5deal.test", password: "password123" },
-  { role: "Buyer", email: "buyer4@n5deal.test", password: "password123" },
-  { role: "Buyer", email: "buyer5@n5deal.test", password: "password123" },
-];
+import { DEMO_ACCOUNTS } from "@/lib/auth/demoAccounts";
+import type { UserStatus } from "@/types";
 
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -61,7 +41,11 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
-export function DemoCredentials() {
+export function DemoCredentials({
+  statuses = {},
+}: {
+  statuses?: Partial<Record<string, UserStatus>>;
+}) {
   return (
     <Card className="bg-surface">
       <CardHeader>
@@ -72,44 +56,53 @@ export function DemoCredentials() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex min-w-0 flex-col gap-1.5">
-        {DEMO_ACCOUNTS.map((account) => (
-          <div
-            key={account.email}
-            className="flex min-w-0 items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm"
-          >
-            <Badge
-              variant="outline"
-              className={
-                account.role === "Manager"
-                  ? "shrink-0 border-primary/40 text-primary"
-                  : "shrink-0 text-muted-foreground"
-              }
+        {DEMO_ACCOUNTS.map((account) => {
+          const status = statuses[account.email] ?? "ACTIVE";
+          return (
+            <div
+              key={account.email}
+              className="flex min-w-0 items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm"
             >
-              {account.role}
-            </Badge>
-            <div className="flex min-w-0 flex-1 items-center gap-1">
-              <span className="min-w-0 truncate font-mono text-xs">
-                {account.email}
+              <Badge
+                variant="outline"
+                className={
+                  account.role === "Manager"
+                    ? "shrink-0 border-primary/40 text-primary"
+                    : "shrink-0 text-muted-foreground"
+                }
+              >
+                {account.role}
+              </Badge>
+              <div className="flex min-w-0 flex-1 items-center gap-1">
+                <span className="min-w-0 truncate font-mono text-xs">
+                  {account.email}
+                </span>
+                <CopyButton
+                  value={account.email}
+                  label={`${account.email} email`}
+                />
+              </div>
+              {status !== "ACTIVE" && (
+                <Badge
+                  variant="outline"
+                  title="Sign-in is blocked for this account"
+                  className="shrink-0 border-destructive/40 text-destructive"
+                >
+                  {status.toLowerCase()}
+                </Badge>
+              )}
+              <span className="ml-auto flex shrink-0 items-center gap-1">
+                <code className="text-xs text-muted-foreground">
+                  password123
+                </code>
+                <CopyButton
+                  value={account.password}
+                  label={`${account.email} password`}
+                />
               </span>
-              <CopyButton
-                value={account.email}
-                label={`${account.email} email`}
-              />
             </div>
-            {account.note && (
-              <span className="shrink-0 text-xs text-muted-foreground">
-                ({account.note})
-              </span>
-            )}
-            <span className="ml-auto flex shrink-0 items-center gap-1">
-              <code className="text-xs text-muted-foreground">password123</code>
-              <CopyButton
-                value={account.password}
-                label={`${account.email} password`}
-              />
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );

@@ -63,6 +63,21 @@ export async function findAccountAccess(
   });
 }
 
+/**
+ * Email → status for a fixed set of accounts. The login-page demo panel
+ * renders it so a manager's suspension shows up without a code change.
+ */
+export async function findStatusesByEmails(
+  emails: string[],
+): Promise<Partial<Record<string, UserStatus>>> {
+  if (emails.length === 0) return {};
+  const rows = await prisma.user.findMany({
+    where: { email: { in: emails } },
+    select: { email: true, status: true },
+  });
+  return Object.fromEntries(rows.map((row) => [row.email, row.status]));
+}
+
 export async function listUsers(
   filters: ListUsersFilters = {},
 ): Promise<Paged<UserPreview>> {

@@ -4,6 +4,8 @@ import { DemoCredentials } from "@/components/auth/DemoCredentials";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { getSession } from "@/lib/auth/guards";
 import { ROLE_HOME } from "@/lib/auth/types";
+import { DEMO_ACCOUNTS } from "@/lib/auth/demoAccounts";
+import { findStatusesByEmails } from "@/lib/db/repositories/users";
 
 export default async function LoginPage({
   searchParams,
@@ -16,6 +18,10 @@ export default async function LoginPage({
     redirect(params.next ?? ROLE_HOME[session.role]);
   }
 
+  const statuses = await findStatusesByEmails(
+    DEMO_ACCOUNTS.map((account) => account.email),
+  );
+
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <section className="flex min-w-0 flex-col gap-4">
@@ -26,7 +32,7 @@ export default async function LoginPage({
         <LoginForm />
       </section>
       <section className="flex min-w-0 flex-col gap-4">
-        <DemoCredentials />
+        <DemoCredentials statuses={statuses} />
       </section>
     </div>
   );
