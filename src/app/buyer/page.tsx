@@ -51,6 +51,7 @@ export default async function BuyerHomePage() {
 
   const { items: matchedAssets } = await listAssets({
     status: "PUBLISHED",
+    sellerStatus: "ACTIVE",
     sort: "newest",
     pageSize: MATCH_LIMIT,
     ...criteria,

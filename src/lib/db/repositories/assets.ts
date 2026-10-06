@@ -33,6 +33,8 @@ export interface AssetFilters {
   priceMax?: number;
   status?: AssetStatus;
   sellerId?: string;
+  /** Only assets whose seller has this status — public surfaces pass "ACTIVE". */
+  sellerStatus?: UserStatus;
   sort?: "newest" | "price_asc" | "price_desc";
   page?: number;
   pageSize?: number;
@@ -49,6 +51,7 @@ export async function listAssets(
     priceMax,
     status,
     sellerId,
+    sellerStatus,
     sort = "newest",
     page = 1,
     pageSize = 12,
@@ -57,6 +60,7 @@ export async function listAssets(
   const where: Prisma.AssetWhereInput = {
     ...(status ? { status } : {}),
     ...(sellerId ? { sellerId } : {}),
+    ...(sellerStatus ? { seller: { status: sellerStatus } } : {}),
     ...(licenseType && licenseType.length > 0
       ? { licenseType: { in: licenseType } }
       : {}),

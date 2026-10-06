@@ -35,6 +35,7 @@ export default async function AssetsPage({
 
   const { items, total } = await listAssets({
     status: "PUBLISHED",
+    sellerStatus: "ACTIVE",
     pageSize: PAGE_SIZE,
     ...filters,
   });

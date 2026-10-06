@@ -30,6 +30,10 @@ export async function generateMetadata({
   if (!asset || asset.status !== "PUBLISHED") {
     return { title: "Asset not found" };
   }
+  const seller = await findUserById(asset.sellerId);
+  if (!seller || seller.status !== "ACTIVE") {
+    return { title: "Asset not found" };
+  }
   return {
     title: asset.title,
     description: `${LICENSE_LABELS[asset.licenseType]} in ${asset.jurisdiction} — ${formatPrice(asset.price, asset.currency)}`,
@@ -43,17 +47,22 @@ export default async function AssetDetailPage({
 }) {
   const { id } = await params;
   const asset = await findAssetById(id);
+  const session = await getSession();
+  const role = session?.status === "ACTIVE" ? session.role : null;
+  const moderator = role === "MANAGER";
 
-  // Non-published assets are invisible to the public.
-  if (!asset || asset.status !== "PUBLISHED") {
+  // Public visibility: published listings by active sellers only. The manager
+  // console links here for moderation, so MANAGER bypasses both checks.
+  if (!asset || (asset.status !== "PUBLISHED" && !moderator)) {
     notFound();
   }
 
-  const session = await getSession();
-  const role = session?.status === "ACTIVE" ? session.role : null;
-  const isOwner = role === "SELLER" && session?.id === asset.sellerId;
-
   const seller = await findUserById(asset.sellerId);
+  if (!seller || (seller.status !== "ACTIVE" && !moderator)) {
+    notFound();
+  }
+
+  const isOwner = role === "SELLER" && session?.id === asset.sellerId;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">

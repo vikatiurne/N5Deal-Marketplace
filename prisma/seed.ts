@@ -252,7 +252,7 @@ async function main() {
       price: 2_950_000,
       description:
         "Estonian e-residency neobank with 25k customers and banking API sandbox.",
-      sellerIndex: 2,
+      sellerIndex: 0,
     },
     {
       title: "Estonian Factoring Plus",
@@ -260,7 +260,7 @@ async function main() {
       jurisdiction: "EE",
       price: 720_000,
       description: "Invoice factoring platform with SEPA direct debit licence.",
-      sellerIndex: 2,
+      sellerIndex: 0,
     },
     {
       title: "Nordic VASP OÜ",
@@ -269,7 +269,7 @@ async function main() {
       price: 1_150_000,
       description:
         "Estonian crypto-to-fiat gateway with institutional KYT tooling.",
-      sellerIndex: 2,
+      sellerIndex: 0,
     },
     {
       title: "Baltic BNPL",
@@ -278,7 +278,7 @@ async function main() {
       price: 1_750_000,
       description:
         "Buy-now-pay-later provider with 9% NPL rate and 200+ merchant partners.",
-      sellerIndex: 2,
+      sellerIndex: 0,
     },
     {
       title: "Vistula Payments",
@@ -287,7 +287,7 @@ async function main() {
       price: 1_600_000,
       description:
         "Polish payment institution with recurring billing and direct debit focus.",
-      sellerIndex: 2,
+      sellerIndex: 0,
     },
     {
       title: "Warsaw Crypto Desk",
@@ -315,6 +315,42 @@ async function main() {
       description:
         "Early-stage EMI with sandbox licence — turnaround opportunity, ops need restructuring.",
       sellerIndex: 0,
+    },
+    {
+      title: "Riga Payment Gateway",
+      licenseType: "PI",
+      jurisdiction: "LT",
+      price: 1_380_000,
+      description:
+        "Merchant gateway processing 40k transactions a day for Baltics e-commerce, PCI-DSS level 1.",
+      sellerIndex: 0,
+    },
+    {
+      title: "Vilnius Crypto Custody",
+      licenseType: "VASP",
+      jurisdiction: "LT",
+      price: 1_640_000,
+      description:
+        "Qualified custody for institutional clients with MPC key management and FIU registration.",
+      sellerIndex: 0,
+    },
+    {
+      title: "Limassol Card Issuer",
+      licenseType: "EMI",
+      jurisdiction: "CY",
+      price: 2_340_000,
+      description:
+        "Card issuing EMI with BIN sponsorship, 180k cards issued and a co-branded retail programme.",
+      sellerIndex: 1,
+    },
+    {
+      title: "Valletta Token Launchpad",
+      licenseType: "MICA_CASP",
+      jurisdiction: "MT",
+      price: 780_000,
+      description:
+        "MiCA CASP running primary issuance and secondary market infrastructure for asset-backed tokens.",
+      sellerIndex: 1,
     },
     // Non-published assets for manager/seller views:
     {

@@ -173,6 +173,26 @@ describe("listAssets — status and visibility", () => {
     expect(page.items).toHaveLength(0);
     expect(page.total).toBe(FIXTURES.length);
   });
+
+  it("hides suspended sellers' listings from public visibility", async () => {
+    const result = await listAssets({
+      status: "PUBLISHED",
+      sellerStatus: "ACTIVE",
+      pageSize: 100,
+    });
+    expect(result.total).toBe(4);
+    expect(titles(result.items)).not.toContain("Cyprus EMI boutique");
+  });
+
+  it("still lists suspended sellers' assets for the manager console", async () => {
+    const result = await listAssetsForManager({
+      status: "PUBLISHED",
+      pageSize: 100,
+    });
+    expect(result.total).toBe(5);
+    const cyprus = result.items.find((a) => a.title === "Cyprus EMI boutique");
+    expect(cyprus?.seller.status).toBe("SUSPENDED");
+  });
 });
 
 describe("listAssets — licence and jurisdiction", () => {
