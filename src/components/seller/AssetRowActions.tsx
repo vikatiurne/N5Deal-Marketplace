@@ -8,6 +8,7 @@ import {
   MoreVertical,
   PauseCircle,
   Pencil,
+  RotateCcw,
   Send,
   Trash2,
 } from "lucide-react";
@@ -42,9 +43,15 @@ export function AssetRowActions({ asset }: AssetRowActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
 
-  const canToggle = asset.status !== "REMOVED";
+  const isRemoved = asset.status === "REMOVED";
   const toggleTo: AssetStatus =
-    asset.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    asset.status === "PUBLISHED" || isRemoved ? "DRAFT" : "PUBLISHED";
+
+  const toggleDoneLabel = isRemoved
+    ? "Listing restored as draft"
+    : toggleTo === "PUBLISHED"
+      ? "Listing published"
+      : "Listing unpublished";
 
   function changeStatus(status: AssetStatus, label: string) {
     setOpen(false);
@@ -86,25 +93,18 @@ export function AssetRowActions({ asset }: AssetRowActionsProps) {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Listing actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {canToggle && (
-            <DropdownMenuItem
-              onSelect={() =>
-                changeStatus(
-                  toggleTo,
-                  toggleTo === "PUBLISHED"
-                    ? "Listing published"
-                    : "Listing unpublished",
-                )
-              }
-            >
-              {toggleTo === "PUBLISHED" ? (
-                <Send className="size-4" aria-hidden="true" />
-              ) : (
-                <EyeOff className="size-4" aria-hidden="true" />
-              )}
-              {NEXT_STATUS_LABEL[asset.status]}
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem
+            onSelect={() => changeStatus(toggleTo, toggleDoneLabel)}
+          >
+            {isRemoved ? (
+              <RotateCcw className="size-4" aria-hidden="true" />
+            ) : toggleTo === "PUBLISHED" ? (
+              <Send className="size-4" aria-hidden="true" />
+            ) : (
+              <EyeOff className="size-4" aria-hidden="true" />
+            )}
+            {NEXT_STATUS_LABEL[asset.status]}
+          </DropdownMenuItem>
           {asset.status === "PUBLISHED" && (
             <DropdownMenuItem
               onSelect={() => changeStatus("PAUSED", "Listing paused")}
@@ -113,7 +113,7 @@ export function AssetRowActions({ asset }: AssetRowActionsProps) {
               Pause
             </DropdownMenuItem>
           )}
-          {asset.status !== "REMOVED" && (
+          {!isRemoved && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onSelect={() => changeStatus("REMOVED", "Listing removed")}
