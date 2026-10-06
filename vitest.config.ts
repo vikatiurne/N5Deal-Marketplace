@@ -16,5 +16,15 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // Applied before any test file is imported, so the Prisma client
+    // constructed inside a test points at prisma/test.db, never dev.db.
+    env: {
+      DATABASE_URL: "file:./test.db",
+    },
+    // The schema is pushed to the throwaway database before the suite runs.
+    globalSetup: ["test/globalSetup.ts"],
+    // SQLite is a single file and every repository test writes fixtures; one
+    // file at a time keeps them from locking each other out.
+    fileParallelism: false,
   },
 });
