@@ -109,6 +109,8 @@ export function ContactSellerButton({
             <Textarea
               id="inquiry-message"
               name="message"
+              aria-invalid={tooShort || undefined}
+              aria-describedby={tooShort ? "inquiry-message-error" : undefined}
               rows={5}
               required
               minLength={MESSAGE_MIN}
@@ -119,7 +121,10 @@ export function ContactSellerButton({
               autoFocus
             />
             {tooShort && (
-              <p className="text-xs text-destructive">
+              <p
+                id="inquiry-message-error"
+                className="text-xs text-destructive"
+              >
                 Add a bit more detail — at least {MESSAGE_MIN} characters.
               </p>
             )}

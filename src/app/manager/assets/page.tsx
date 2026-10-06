@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
 
+import { BriefcaseBusiness } from "lucide-react";
 import { ManagerAssetFilterBar } from "@/components/manager/ManagerAssetFilterBar";
+import { EmptyState } from "@/components/EmptyState";
 import { ManagerAssetRowActions } from "@/components/manager/ManagerAssetRowActions";
 import { ManagerUserStatusBadge } from "@/components/manager/ManagerUserStatusBadge";
 import { AssetStatusBadge } from "@/components/seller/AssetStatusBadge";
 import { Pagination } from "@/components/assets/Pagination";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
+  TableCaption,
   TableBody,
   TableCell,
   TableHead,
@@ -59,20 +62,20 @@ export default async function ManagerAssetsPage({
       <ManagerAssetFilterBar />
 
       {items.length === 0 ? (
-        <Card className="bg-surface">
-          <CardContent className="flex flex-col items-start gap-3 pt-6">
-            <p className="text-sm text-muted-foreground">
-              No listings match these filters.
-            </p>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/manager/assets">Reset filters</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={BriefcaseBusiness}
+          title="No listings match these filters"
+          description="Clear the search text or widen the license, jurisdiction and status filters."
+          actionHref="/manager/assets"
+          actionLabel="Reset filters"
+        />
       ) : (
         <Card className="bg-surface">
           <CardContent className="pt-6">
             <Table>
+              <TableCaption className="text-xs">
+                Every listing, including drafts and unpublished assets.
+              </TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
@@ -111,8 +114,8 @@ export default async function ManagerAssetsPage({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {asset.licenseType}
+                    <TableCell className="text-xs">
+                      <LicenseTypeBadge value={asset.licenseType} />
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {asset.jurisdiction}

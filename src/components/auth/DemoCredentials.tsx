@@ -71,29 +71,31 @@ export function DemoCredentials() {
           <code className="text-foreground">password123</code>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-1.5">
+      <CardContent className="flex min-w-0 flex-col gap-1.5">
         {DEMO_ACCOUNTS.map((account) => (
           <div
             key={account.email}
-            className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm"
+            className="flex min-w-0 items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-sm"
           >
             <Badge
               variant="outline"
               className={
                 account.role === "Manager"
-                  ? "border-primary/40 text-primary"
-                  : "text-muted-foreground"
+                  ? "shrink-0 border-primary/40 text-primary"
+                  : "shrink-0 text-muted-foreground"
               }
             >
               {account.role}
             </Badge>
-            <span className="truncate font-mono text-xs">{account.email}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-xs">
+              {account.email}
+            </span>
             {account.note && (
-              <span className="text-xs text-muted-foreground">
+              <span className="shrink-0 text-xs text-muted-foreground">
                 ({account.note})
               </span>
             )}
-            <span className="ml-auto flex items-center gap-1">
+            <span className="ml-auto flex shrink-0 items-center gap-1">
               <code className="text-xs text-muted-foreground">password123</code>
               <CopyButton
                 value={account.email}

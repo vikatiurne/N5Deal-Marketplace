@@ -18,14 +18,14 @@ export default async function LoginPage({
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
-      <section className="flex flex-col gap-4">
+      <section className="flex min-w-0 flex-col gap-4">
         <h1 className="text-2xl font-semibold">Sign in</h1>
         <p className="text-sm text-muted-foreground">
           Access your N5Deal workspace. Use a seeded demo account below.
         </p>
         <LoginForm />
       </section>
-      <section className="flex flex-col gap-4">
+      <section className="flex min-w-0 flex-col gap-4">
         <DemoCredentials />
       </section>
     </div>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SearchX, Send } from "lucide-react";
 
 import { ProfileCompletenessCard } from "@/components/buyer/ProfileCompletenessCard";
+import { EmptyState } from "@/components/EmptyState";
 import { AssetCard } from "@/components/assets/AssetCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -124,29 +125,21 @@ export default async function BuyerHomePage() {
         </div>
 
         {matchedAssets.length === 0 ? (
-          <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border bg-surface px-6 py-14 text-center">
-            <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-              <SearchX
-                className="size-6 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </span>
-            <div className="flex flex-col gap-1">
-              <h3 className="font-semibold">No published assets match yet</h3>
-              <p className="max-w-sm text-sm text-muted-foreground">
-                Widen your budget or jurisdictions, or send an inquiry to a
-                seller from the marketplace.
-              </p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button variant="outline" asChild>
-                <Link href="/buyer/profile">Adjust interests</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/assets">Browse all assets</Link>
-              </Button>
-            </div>
-          </div>
+          <EmptyState
+            icon={SearchX}
+            title="No published assets match yet"
+            description="Widen your budget or jurisdictions, or send an inquiry to a seller from the marketplace."
+            action={
+              <>
+                <Button variant="outline" asChild>
+                  <Link href="/buyer/profile">Adjust interests</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/assets">Browse all assets</Link>
+                </Button>
+              </>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {matchedAssets.map((asset) => (

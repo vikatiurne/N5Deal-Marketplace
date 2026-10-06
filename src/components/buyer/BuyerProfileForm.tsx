@@ -97,7 +97,7 @@ export function BuyerProfileForm({
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
         >
           {error}
         </p>
@@ -214,6 +214,10 @@ export function BuyerProfileForm({
             <Textarea
               id="description"
               name="description"
+              aria-invalid={descriptionTooShort || undefined}
+              aria-describedby={
+                descriptionTooShort ? "description-error" : undefined
+              }
               rows={5}
               required
               minLength={DESCRIPTION_MIN}
@@ -223,7 +227,7 @@ export function BuyerProfileForm({
               placeholder="Looking for an established EMI in the Baltics with passporting rights across the EEA…"
             />
             {descriptionTooShort && (
-              <p className="text-xs text-destructive">
+              <p id="description-error" className="text-xs text-destructive">
                 Add a bit more detail — at least {DESCRIPTION_MIN} characters.
               </p>
             )}

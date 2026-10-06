@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { ManagerUserFilterBar } from "@/components/manager/ManagerUserFilterBar";
+import { EmptyState } from "@/components/EmptyState";
+import { Users } from "lucide-react";
+import { ROLE_LABELS, ROLE_STYLES } from "@/lib/badgeStyles";
 import { ManagerUserRowActions } from "@/components/manager/ManagerUserRowActions";
 import { ManagerUserStatusBadge } from "@/components/manager/ManagerUserStatusBadge";
 import { Pagination } from "@/components/assets/Pagination";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
+  TableCaption,
   TableBody,
   TableCell,
   TableHead,
@@ -56,20 +58,20 @@ export default async function ManagerUsersPage({
       <ManagerUserFilterBar />
 
       {items.length === 0 ? (
-        <Card className="bg-surface">
-          <CardContent className="flex flex-col items-start gap-3 pt-6">
-            <p className="text-sm text-muted-foreground">
-              No members match these filters.
-            </p>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/manager/users">Reset filters</Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Users}
+          title="No members match these filters"
+          description="Clear the search text or widen the role and status filters."
+          actionHref="/manager/users"
+          actionLabel="Reset filters"
+        />
       ) : (
         <Card className="bg-surface">
           <CardContent className="pt-6">
             <Table>
+              <TableCaption className="text-xs">
+                All platform users — actions are recorded in the audit log.
+              </TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead>Role</TableHead>
@@ -84,7 +86,9 @@ export default async function ManagerUsersPage({
                 {items.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell>
-                      <Badge variant="outline">{u.role}</Badge>
+                      <Badge variant="outline" className={ROLE_STYLES[u.role]}>
+                        {ROLE_LABELS[u.role]}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <ManagerUserStatusBadge status={u.status} />

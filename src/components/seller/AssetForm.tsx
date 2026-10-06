@@ -84,13 +84,6 @@ export function AssetForm({ asset }: AssetFormProps) {
         return;
       }
 
-      if (result.redirectTo) {
-        router.push(result.redirectTo);
-        router.refresh();
-        return;
-      }
-
-      router.refresh();
       toast({
         title: intent === "publish" ? "Listing published" : "Listing saved",
         description:
@@ -98,6 +91,17 @@ export function AssetForm({ asset }: AssetFormProps) {
             ? "It is now visible on the public marketplace."
             : "Saved as a draft — not visible publicly.",
       });
+
+      if (result.redirectTo) {
+        /* Fired before navigating: the toast reducer lives in a module-level
+           store, so it survives the client-side route change. Returning first
+           meant creating a listing was the one mutation with no confirmation. */
+        router.push(result.redirectTo);
+        router.refresh();
+        return;
+      }
+
+      router.refresh();
     });
   }
 
@@ -109,7 +113,7 @@ export function AssetForm({ asset }: AssetFormProps) {
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
         >
           {error}
         </p>

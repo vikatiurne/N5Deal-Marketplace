@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BriefcaseBusiness, Inbox, PlusCircle } from "lucide-react";
 
 import { AssetStatusBadge } from "@/components/seller/AssetStatusBadge";
+import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -143,11 +144,14 @@ export default async function SellerHomePage() {
         </div>
 
         {latest.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              No inquiries yet. Publish a listing and buyers will find it.
-            </p>
-          </div>
+          <EmptyState
+            className="py-12"
+            icon={Inbox}
+            title="No inquiries yet"
+            description="Publish a listing and buyers will find it."
+            actionHref="/seller/assets/new"
+            actionLabel="Create a listing"
+          />
         ) : (
           <ul className="flex flex-col gap-3">
             {latest.map((inquiry) => (

@@ -7,6 +7,7 @@ import { registerAction } from "@/server/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types";
 
@@ -31,6 +32,7 @@ export function RegisterForm() {
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<Extract<Role, "BUYER" | "SELLER">>("BUYER");
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,7 +45,13 @@ export function RegisterForm() {
         role,
       });
       if (!result.ok) {
-        setError(result.error ?? "Registration failed.");
+        const message = result.error ?? "Registration failed.";
+        setError(message);
+        toast({
+          title: "Could not create the account",
+          description: message,
+          variant: "destructive",
+        });
         return;
       }
       router.push(result.redirectTo ?? "/");
@@ -56,7 +64,7 @@ export function RegisterForm() {
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
         >
           {error}
         </p>

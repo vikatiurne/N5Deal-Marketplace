@@ -29,7 +29,7 @@ export function ProfileCompletenessCard({
             className={
               complete
                 ? "border-primary/40 text-primary"
-                : "border-amber-500/40 text-amber-400"
+                : "border-warning/40 bg-warning/10 text-warning"
             }
           >
             {complete ? "Complete" : "Incomplete"}

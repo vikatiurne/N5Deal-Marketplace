@@ -8,6 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
@@ -28,6 +29,11 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
+  --color-destructive-solid: var(--destructive-solid);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -47,6 +53,15 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Elevation — the dark UI needs shadows to separate stacked surfaces from
+     the near-black background; cards otherwise rely on a 1px ring alone. */
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+  --shadow-card-hover: 0 10px 28px -10px rgb(0 0 0 / 0.6);
+  --shadow-popover: 0 12px 32px -12px rgb(0 0 0 / 0.65);
+
+  /* Motion — 150ms for state changes, 200ms for surfaces that move. */
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /*
@@ -76,6 +91,18 @@
   --accent-foreground: #e6e9ef;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
+  /*
+   * Semantic states added in task 09. Each has a *tint* form for badges (color
+   * at 10% over the surface) and a *solid* form for filled backgrounds.
+   * Contrast ratios against --surface #12151a are documented in
+   * ARCHITECTURE.md — every value here was picked to clear WCAG AA 4.5:1,
+   * unlike --destructive (#ef4444) which only clears 4.5:1 on the bare
+   * surface and fails on its own 10% tint, hence the two extra reds.
+   */
+  --warning: #fbbf24;
+  --warning-foreground: #04150e;
+  --destructive-text: #f87171;
+  --destructive-solid: #dc2626;
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.12);
   --ring: #10b981;
@@ -101,47 +128,6 @@
     "Courier New", monospace;
 }
 
-/*
- * Mirrors the base palette above — shadcn components resolve tokens
- * under .dark, and the app ships dark by default (html class="dark").
- */
-.dark {
-  --background: #0b0d10;
-  --foreground: #e6e9ef;
-  --surface: #12151a;
-  --surface-foreground: #e6e9ef;
-  --card: #12151a;
-  --card-foreground: #e6e9ef;
-  --popover: #12151a;
-  --popover-foreground: #e6e9ef;
-  --primary: #10b981;
-  --primary-foreground: #04150e;
-  --secondary: #1a1f27;
-  --secondary-foreground: #e6e9ef;
-  --muted: #161a21;
-  --muted-foreground: #8b93a1;
-  --accent: #1a1f27;
-  --accent-foreground: #e6e9ef;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.12);
-  --ring: #10b981;
-  --chart-1: #10b981;
-  --chart-2: #38bdf8;
-  --chart-3: #a78bfa;
-  --chart-4: #f59e0b;
-  --chart-5: #f472b6;
-  --sidebar: #12151a;
-  --sidebar-foreground: #e6e9ef;
-  --sidebar-primary: #10b981;
-  --sidebar-primary-foreground: #04150e;
-  --sidebar-accent: #1a1f27;
-  --sidebar-accent-foreground: #e6e9ef;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #10b981;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -159,5 +145,14 @@
   h5,
   h6 {
     @apply tracking-tight;
+  }
+  /*
+   * The shadcn primitives carry their own focus-visible ring, but every plain
+   * <Link> in the app (nav, breadcrumbs, card titles) had none at all — a
+   * keyboard user could not see where they were. Scoped to links on purpose:
+   * a global rule would double up on buttons, inputs and selects.
+   */
+  a:focus-visible {
+    @apply outline-ring outline-2 outline-offset-2;
   }
 }

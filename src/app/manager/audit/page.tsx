@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { ScrollText } from "lucide-react";
 import Link from "next/link";
 
 import { Pagination } from "@/components/assets/Pagination";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -151,14 +153,11 @@ export default async function ManagerAuditPage({
       </Card>
 
       {items.length === 0 ? (
-        <Card className="bg-surface">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No audit entries yet. Moderate a member or a listing and it will
-              show up here immediately.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={ScrollText}
+          title="No audit entries yet"
+          description="Moderate a member or a listing and it will show up here immediately."
+        />
       ) : (
         <Card className="bg-surface">
           <CardContent className="pt-6">

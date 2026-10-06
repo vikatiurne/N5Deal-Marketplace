@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
 import {
   Card,
   CardContent,
@@ -14,13 +15,11 @@ import type { Asset } from "@/types";
 
 export function AssetCard({ asset }: { asset: Asset }) {
   return (
-    <Card className="flex h-full flex-col bg-surface transition-transform duration-200 hover:-translate-y-0.5">
+    <Card className="group/card flex h-full flex-col bg-surface shadow-card transition-[transform,box-shadow,border-color] duration-200 ease-soft hover:-translate-y-0.5 hover:shadow-card-hover focus-within:-translate-y-0.5 focus-within:shadow-card-hover">
       <CardHeader className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20">
-            {asset.licenseType}
-          </Badge>
-          <Badge variant="outline" className="text-muted-foreground">
+          <LicenseTypeBadge value={asset.licenseType} />
+          <Badge variant="outline" className="font-mono text-muted-foreground">
             {asset.jurisdiction}
           </Badge>
         </div>

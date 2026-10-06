@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -26,6 +27,7 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const next = searchParams.get("next");
   const urlError = searchParams.get("error") ?? searchParams.get("code");
@@ -45,7 +47,13 @@ export function LoginForm() {
       });
       if (result?.error) {
         const code = result.code ?? "credentials";
-        setError(ERROR_MESSAGES[code] ?? "Sign-in failed. Try again.");
+        const message = ERROR_MESSAGES[code] ?? "Sign-in failed. Try again.";
+        setError(message);
+        toast({
+          title: "Could not sign in",
+          description: message,
+          variant: "destructive",
+        });
         return;
       }
       // "/" resolves the role home for the fresh session.
@@ -59,7 +67,7 @@ export function LoginForm() {
       {initialError && (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
         >
           {initialError}
         </p>
@@ -75,7 +83,7 @@ export function LoginForm() {
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
         >
           {error}
         </p>

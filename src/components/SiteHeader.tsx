@@ -1,12 +1,31 @@
 import Link from "next/link";
+import { ChevronDown, LogOut, Menu } from "lucide-react";
 
 import { logoutAction } from "@/server/auth";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { ROLE_LABELS, ROLE_STYLES } from "@/lib/badgeStyles";
 import { getSession } from "@/lib/auth/guards";
 import { ROLE_HOME } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
-
-type Role = "BUYER" | "SELLER" | "MANAGER";
+import type { Role } from "@/types";
 
 interface NavItem {
   href: string;
@@ -26,6 +45,9 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/register", label: "Register", roles: null, auth: false },
 ];
 
+const NAV_LINK_CLASS =
+  "rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground";
+
 export async function SiteHeader() {
   const session = await getSession();
   const currentRole = session?.status === "ACTIVE" ? session.role : null;
@@ -41,38 +63,128 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
           <span className="inline-flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
             N5
           </span>
           <span className="text-base font-semibold tracking-tight">N5Deal</span>
         </Link>
 
-        <nav aria-label="Main" className="flex items-center gap-1">
+        {/* The horizontal nav overflowed 375px by ~25px, so below `md` the
+            links move into a drawer and only the brand + menu button stay. */}
+        <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
           {visibleItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-              )}
+              className={cn(NAV_LINK_CLASS, "px-2.5 py-1.5")}
             >
               {item.label}
             </Link>
           ))}
-          {currentRole !== null && (
-            <form action={logoutAction}>
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Logout
-              </Button>
-            </form>
-          )}
         </nav>
+
+        <div className="flex items-center gap-1">
+          {currentRole !== null && (
+            /* The session is now visible: name plus a role badge. Previously
+               the only sign-in signal was which nav link appeared. */
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="hidden h-8 gap-1.5 px-2 md:inline-flex"
+                >
+                  <span className="max-w-32 truncate text-sm">
+                    {session?.email}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-4 px-1.5 text-[0.65rem]",
+                      ROLE_STYLES[currentRole],
+                    )}
+                  >
+                    {ROLE_LABELS[currentRole]}
+                  </Badge>
+                  <ChevronDown
+                    className="size-3.5 opacity-60"
+                    aria-hidden="true"
+                  />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex flex-col gap-0.5">
+                  <span className="truncate text-xs font-normal text-muted-foreground">
+                    {session?.email}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href={ROLE_HOME[currentRole]}>My dashboard</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/assets">Browse assets</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild variant="destructive">
+                  <form action={logoutAction}>
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-2 text-left"
+                    >
+                      <LogOut className="size-4" aria-hidden="true" />
+                      Logout
+                    </button>
+                  </form>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                aria-label="Open main menu"
+              >
+                <Menu className="size-5" aria-hidden="true" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72">
+              <SheetHeader>
+                <SheetTitle>Menu</SheetTitle>
+                <SheetDescription>
+                  {currentRole !== null && session
+                    ? `${session.email} · ${ROLE_LABELS[currentRole]}`
+                    : "Sign in or create an account to reach your dashboard."}
+                </SheetDescription>
+              </SheetHeader>
+              <nav aria-label="Mobile" className="flex flex-col gap-1">
+                {visibleItems.map((item) => (
+                  <SheetClose key={item.href} asChild>
+                    <Link href={item.href} className={NAV_LINK_CLASS}>
+                      {item.label}
+                    </Link>
+                  </SheetClose>
+                ))}
+              </nav>
+              {currentRole !== null && (
+                <form action={logoutAction} className="mt-auto">
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                  >
+                    <LogOut className="size-4" aria-hidden="true" />
+                    Logout
+                  </Button>
+                </form>
+              )}
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   );

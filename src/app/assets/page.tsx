@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 
 import { AiInterpretationBanner } from "@/components/assets/AiInterpretationBanner";
 import { AssetCard } from "@/components/assets/AssetCard";
-import { EmptyState } from "@/components/assets/EmptyState";
+import { EmptyState } from "@/components/EmptyState";
 import { FilterBar } from "@/components/assets/FilterBar";
 import { Pagination } from "@/components/assets/Pagination";
+import { SearchX } from "lucide-react";
 import { SmartSearchBar } from "@/components/assets/SmartSearchBar";
 import { listAssets } from "@/lib/db/repositories/assets";
 import { assetFiltersSchema } from "@/lib/validation/assets";
@@ -76,7 +77,13 @@ export default async function AssetsPage({
       <FilterBar />
 
       {items.length === 0 ? (
-        <EmptyState />
+        <EmptyState
+          icon={SearchX}
+          title="No assets match your filters"
+          description="Try widening the price range, removing a license type, or clearing the search text."
+          actionHref="/assets"
+          actionLabel="Reset filters"
+        />
       ) : (
         <>
           <div

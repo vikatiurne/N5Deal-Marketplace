@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ContactSellerButton } from "@/components/assets/ContactSellerButton";
+import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
+import { LICENSE_LABELS } from "@/lib/badgeStyles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +32,7 @@ export async function generateMetadata({
   }
   return {
     title: asset.title,
-    description: `${asset.licenseType} in ${asset.jurisdiction} — ${formatPrice(asset.price, asset.currency)}`,
+    description: `${LICENSE_LABELS[asset.licenseType]} in ${asset.jurisdiction} — ${formatPrice(asset.price, asset.currency)}`,
   };
 }
 
@@ -64,14 +66,14 @@ export default async function AssetDetailPage({
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20">
-            {asset.licenseType}
-          </Badge>
-          <Badge variant="outline" className="text-muted-foreground">
+          <LicenseTypeBadge value={asset.licenseType} />
+          <Badge variant="outline" className="font-mono text-muted-foreground">
             {asset.jurisdiction}
           </Badge>
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight">{asset.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          {asset.title}
+        </h1>
         <p className="text-xl font-semibold text-primary">
           {formatPrice(asset.price, asset.currency)}
         </p>

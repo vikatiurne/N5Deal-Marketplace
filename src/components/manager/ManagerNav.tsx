@@ -26,7 +26,8 @@ export function ManagerNav() {
       aria-label="Manager"
       className="flex flex-col gap-4 lg:sticky lg:top-20"
     >
-      <ul className="flex gap-1 overflow-x-auto lg:flex-col">
+      {/* Below `sm` the 5-entry strip could not fit 375px and hid items behind a scroll nobody could see; a 2-column grid shows every entry with no horizontal scroll at all. */}
+      <ul className="grid grid-cols-2 gap-1 sm:flex sm:overflow-x-auto lg:flex-col">
         {NAV_ITEMS.map((item) => {
           const active =
             item.href === "/manager"

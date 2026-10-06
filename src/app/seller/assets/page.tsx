@@ -1,20 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PlusCircle } from "lucide-react";
+import { BriefcaseBusiness, PlusCircle } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
 
 import { AssetRowActions } from "@/components/seller/AssetRowActions";
 import { AssetStatusBadge } from "@/components/seller/AssetStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
+  TableCaption,
   TableBody,
   TableCell,
   TableHead,
@@ -53,23 +50,23 @@ export default async function SellerAssetsPage() {
       </div>
 
       {assets.length === 0 ? (
-        <Card className="bg-surface">
-          <CardHeader>
-            <CardTitle className="text-base">No listings yet</CardTitle>
-            <CardDescription>
-              Publish your first licensed entity to reach buyers.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <EmptyState
+          icon={BriefcaseBusiness}
+          title="No listings yet"
+          description="Publish your first licensed entity to reach buyers."
+          action={
             <Button asChild>
               <Link href="/seller/assets/new">Create an asset</Link>
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <Card className="bg-surface">
           <CardContent className="pt-6">
             <Table>
+              <TableCaption className="text-xs">
+                Your listings. Only published assets are visible to buyers.
+              </TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
@@ -92,8 +89,8 @@ export default async function SellerAssetsPage() {
                         {asset.title}
                       </Link>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {asset.licenseType}
+                    <TableCell className="text-xs">
+                      <LicenseTypeBadge value={asset.licenseType} />
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {asset.jurisdiction}

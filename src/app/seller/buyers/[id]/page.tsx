@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
 import { requireRole } from "@/lib/auth/guards";
 import { listAssetsBySeller } from "@/lib/db/repositories/assets";
 import { findBuyerProfile } from "@/lib/db/repositories/buyers";
@@ -121,12 +122,7 @@ export default async function SellerBuyerDetailPage({
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.licenseTypes.map((license) => (
-                      <Badge
-                        key={license}
-                        className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-                      >
-                        {license}
-                      </Badge>
+                      <LicenseTypeBadge key={license} value={license} />
                     ))}
                   </div>
                 </div>

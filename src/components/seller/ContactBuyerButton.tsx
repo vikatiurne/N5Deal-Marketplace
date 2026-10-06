@@ -161,6 +161,8 @@ export function ContactBuyerButton({
               name="message"
               rows={5}
               required
+              aria-invalid={tooShort || undefined}
+              aria-describedby={tooShort ? "seller-message-error" : undefined}
               minLength={MESSAGE_MIN}
               maxLength={2000}
               value={message}
@@ -169,7 +171,7 @@ export function ContactBuyerButton({
               autoFocus
             />
             {tooShort && (
-              <p className="text-xs text-destructive">
+              <p id="seller-message-error" className="text-xs text-destructive">
                 Add a bit more detail — at least {MESSAGE_MIN} characters.
               </p>
             )}

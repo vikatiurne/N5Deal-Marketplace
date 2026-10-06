@@ -31,6 +31,13 @@ export function MarkReadButton({
         return;
       }
       router.refresh();
+      toast({
+        title: "Marked as read",
+        description:
+          inquiryIds.length === 1
+            ? "1 inquiry moved out of your unread count."
+            : `${inquiryIds.length} inquiries moved out of your unread count.`,
+      });
     });
   }
 
@@ -44,17 +51,17 @@ export function MarkReadButton({
       onClick={markRead}
       disabled={isPending}
     >
+      <CheckCheck className="size-4" aria-hidden="true" />
       {size === "icon" ? (
-        <CheckCheck className="size-4" aria-hidden="true" />
+        /* The visible label is gone in the icon variant, so the count has to
+           be announced here instead — it used to be in *both* variants, which
+           made the button read "Mark as read Mark 3 inquiries as read". */
+        <span className="sr-only">Mark {inquiryIds.length} as read</span>
+      ) : isPending ? (
+        "Marking…"
       ) : (
-        <>
-          <CheckCheck className="size-4" aria-hidden="true" />
-          {isPending ? "Marking…" : "Mark as read"}
-        </>
+        `Mark ${inquiryIds.length} as read`
       )}
-      <span className="sr-only">
-        Mark {inquiryIds.length} inquiries as read
-      </span>
     </Button>
   );
 }

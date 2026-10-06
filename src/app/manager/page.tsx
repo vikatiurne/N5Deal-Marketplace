@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LICENSE_LABELS, ROLE_LABELS, ROLE_STYLES } from "@/lib/badgeStyles";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -282,7 +283,9 @@ export default async function ManagerHomePage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline">{u.role}</Badge>
+                    <Badge variant="outline" className={ROLE_STYLES[u.role]}>
+                      {ROLE_LABELS[u.role]}
+                    </Badge>
                     <ManagerUserStatusBadge status={u.status} />
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {formatDateTime(u.createdAt)}
@@ -314,7 +317,8 @@ export default async function ManagerHomePage() {
                       {asset.title}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">
-                      {asset.seller.displayName} · {asset.licenseType} ·{" "}
+                      {asset.seller.displayName} ·{" "}
+                      {LICENSE_LABELS[asset.licenseType]} ·{" "}
                       {formatPrice(asset.price, asset.currency)}
                     </p>
                   </div>

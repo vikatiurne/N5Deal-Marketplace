@@ -3,7 +3,9 @@ import Link from "next/link";
 import { Users } from "lucide-react";
 
 import { BuyerFilterBar } from "@/components/seller/BuyerFilterBar";
+import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
+import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -55,26 +57,13 @@ export default async function SellerBuyersPage({
       <BuyerFilterBar />
 
       {buyers.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border bg-surface px-6 py-16 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-            <Users
-              className="size-6 text-muted-foreground"
-              aria-hidden="true"
-            />
-          </span>
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold tracking-tight">
-              No buyers match
-            </h2>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Widen the budget range or clear the jurisdiction and license
-              filters.
-            </p>
-          </div>
-          <Button variant="outline" asChild>
-            <Link href="/seller/buyers">Reset filters</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No buyers match"
+          description="Widen the budget range or clear the jurisdiction and license filters."
+          actionHref="/seller/buyers"
+          actionLabel="Reset filters"
+        />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">
           {buyers.map((buyer) => (
@@ -108,12 +97,7 @@ export default async function SellerBuyersPage({
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {buyer.licenseTypes.map((license) => (
-                      <Badge
-                        key={license}
-                        className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-                      >
-                        {license}
-                      </Badge>
+                      <LicenseTypeBadge key={license} value={license} />
                     ))}
                   </div>
                   {buyer.description && (

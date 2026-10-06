@@ -4,6 +4,8 @@ import { Inbox } from "lucide-react";
 
 import { AssetStatusBadge } from "@/components/seller/AssetStatusBadge";
 import { MarkReadButton } from "@/components/seller/MarkReadButton";
+import { LICENSE_LABELS } from "@/lib/badgeStyles";
+import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,25 +70,16 @@ export default async function SellerInquiriesPage() {
       </div>
 
       {groups.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border bg-surface px-6 py-16 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-            <Inbox
-              className="size-6 text-muted-foreground"
-              aria-hidden="true"
-            />
-          </span>
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Nothing in the inbox
-            </h2>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              When a buyer contacts you about a listing, the request lands here.
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/seller/assets">Review my listings</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={Inbox}
+          title="Nothing in the inbox"
+          description="When a buyer contacts you about a listing, the request lands here."
+          action={
+            <Button asChild>
+              <Link href="/seller/assets">Review my listings</Link>
+            </Button>
+          }
+        />
       ) : (
         <div className="flex flex-col gap-6">
           {groups.map((group) => {
@@ -109,7 +102,8 @@ export default async function SellerInquiriesPage() {
                       </CardTitle>
                       <CardDescription className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs">
-                          {group.asset.licenseType} · {group.asset.jurisdiction}
+                          {LICENSE_LABELS[group.asset.licenseType]} ·{" "}
+                          {group.asset.jurisdiction}
                         </span>
                         <AssetStatusBadge status={group.asset.status} />
                       </CardDescription>

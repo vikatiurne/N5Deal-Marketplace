@@ -3,11 +3,29 @@
 import * as React from "react";
 import { cn } from "cn";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({
+  className,
+  containerClassName,
+  containerProps,
+  ...props
+}: React.ComponentProps<"table"> & {
+  containerClassName?: string;
+  containerProps?: React.ComponentProps<"div">;
+}) {
   return (
+    /* The manager tables are wider than 375px, so the wrapper scrolls. A plain
+       overflow container is unreachable by keyboard (WCAG 2.1.1), hence
+       role="region" + tabIndex=0 + a focus ring: Tab reveals the scroll area
+       and arrow keys pan it. */
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      role="region"
+      tabIndex={0}
+      className={cn(
+        "relative w-full overflow-x-auto rounded-md focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none",
+        containerClassName,
+      )}
+      {...containerProps}
     >
       <table
         data-slot="table"

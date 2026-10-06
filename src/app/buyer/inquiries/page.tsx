@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Inbox } from "lucide-react";
+import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
+import { EmptyState } from "@/components/EmptyState";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,26 +36,16 @@ export default async function BuyerInquiriesPage() {
     return (
       <div className="flex flex-col gap-6">
         <h1 className="text-2xl font-semibold tracking-tight">My inquiries</h1>
-        <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border bg-surface px-6 py-16 text-center">
-          <span className="flex size-12 items-center justify-center rounded-full bg-muted">
-            <Inbox
-              className="size-6 text-muted-foreground"
-              aria-hidden="true"
-            />
-          </span>
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold tracking-tight">
-              No inquiries yet
-            </h2>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Open a listing and send the seller a message — it will appear here
-              with its status.
-            </p>
-          </div>
-          <Button asChild>
-            <Link href="/assets">Browse assets</Link>
-          </Button>
-        </div>
+        <EmptyState
+          icon={Inbox}
+          title="No inquiries yet"
+          description="Open a listing and send the seller a message — it will appear here with its status."
+          action={
+            <Button asChild>
+              <Link href="/assets">Browse assets</Link>
+            </Button>
+          }
+        />
       </div>
     );
   }
@@ -107,7 +99,7 @@ export default async function BuyerInquiriesPage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>{DATE_FORMAT.format(inquiry.createdAt)}</span>
                   <span aria-hidden="true">·</span>
-                  <span className="font-mono">{inquiry.asset.licenseType}</span>
+                  <LicenseTypeBadge value={inquiry.asset.licenseType} />
                   <span aria-hidden="true">·</span>
                   <span className="font-mono">
                     {inquiry.asset.jurisdiction}
