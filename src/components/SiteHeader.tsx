@@ -175,14 +175,19 @@ export async function SiteHeader() {
               </nav>
               {currentRole !== null && (
                 <form action={logoutAction} className="mt-auto">
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="w-full justify-start gap-2"
-                  >
-                    <LogOut className="size-4" aria-hidden="true" />
-                    Logout
-                  </Button>
+                  {/* SheetClose: signOut only soft-navigates, and the Sheet
+                      survives layout updates — without this the drawer stays
+                      open over the landing page after logout. */}
+                  <SheetClose asChild>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                    >
+                      <LogOut className="size-4" aria-hidden="true" />
+                      Logout
+                    </Button>
+                  </SheetClose>
                 </form>
               )}
             </SheetContent>

@@ -33,6 +33,12 @@ const NAV_ITEMS = [
 export function SellerNav() {
   const pathname = usePathname();
 
+  // Exactly one entry lights up: "/seller/assets" prefix-matches
+  // "/seller/assets/new" too, so the most specific match wins.
+  const activeHref = NAV_ITEMS.filter((item) =>
+    item.exact ? pathname === item.href : pathname.startsWith(item.href),
+  ).sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <nav
       aria-label="Seller"
@@ -41,23 +47,16 @@ export function SellerNav() {
       {/* Below `sm` the 5-entry strip could not fit 375px and hid items behind a scroll nobody could see; a 2-column grid shows every entry with no horizontal scroll at all. */}
       <ul className="grid grid-cols-2 gap-1 sm:flex sm:overflow-x-auto lg:flex-col">
         {NAV_ITEMS.map((item) => {
-          // "/seller/assets/new" must not light up the "My assets" entry.
-          const active =
-            item.href === "/seller/assets/new"
-              ? pathname === item.href
-              : item.exact
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
           const Icon = item.icon;
 
           return (
             <li key={item.href} className="shrink-0">
               <Link
                 href={item.href}
-                aria-current={active ? "page" : undefined}
+                aria-current={item.href === activeHref ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                  active
+                  item.href === activeHref
                     ? "bg-primary/10 font-medium text-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
