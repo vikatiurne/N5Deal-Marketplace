@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 
 /** Maps Auth.js `code` query values to human-readable messages. */
 const ERROR_MESSAGES: Record<string, string> = {
@@ -105,10 +106,9 @@ export function LoginForm() {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
           value={password}

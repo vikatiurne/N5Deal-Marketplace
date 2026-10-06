@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronDown, LogOut, Menu } from "lucide-react";
 
 import { logoutAction } from "@/server/auth";
+import { Logo } from "@/components/Logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,11 +64,13 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex shrink-0 items-center gap-2">
-          <span className="inline-flex size-7 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-            N5
-          </span>
-          <span className="text-base font-semibold tracking-tight">N5Deal</span>
+        <Link
+          href="/"
+          aria-label="N5Deal — home"
+          className="flex shrink-0 items-center gap-2"
+        >
+          <Logo />
+          <span className="text-base font-semibold tracking-tight">Deal</span>
         </Link>
 
         {/* The horizontal nav overflowed 375px by ~25px, so below `md` the

@@ -7,6 +7,7 @@ import { registerAction } from "@/server/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types";
@@ -101,10 +102,9 @@ export function RegisterForm() {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="reg-password">Password</Label>
-        <Input
+        <PasswordInput
           id="reg-password"
           name="password"
-          type="password"
           autoComplete="new-password"
           required
           minLength={8}

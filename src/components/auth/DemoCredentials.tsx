@@ -87,9 +87,15 @@ export function DemoCredentials() {
             >
               {account.role}
             </Badge>
-            <span className="min-w-0 flex-1 truncate font-mono text-xs">
-              {account.email}
-            </span>
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <span className="min-w-0 truncate font-mono text-xs">
+                {account.email}
+              </span>
+              <CopyButton
+                value={account.email}
+                label={`${account.email} email`}
+              />
+            </div>
             {account.note && (
               <span className="shrink-0 text-xs text-muted-foreground">
                 ({account.note})
@@ -97,10 +103,6 @@ export function DemoCredentials() {
             )}
             <span className="ml-auto flex shrink-0 items-center gap-1">
               <code className="text-xs text-muted-foreground">password123</code>
-              <CopyButton
-                value={account.email}
-                label={`${account.email} email`}
-              />
               <CopyButton
                 value={account.password}
                 label={`${account.email} password`}
