@@ -29,7 +29,14 @@ const jurisdictionArray = z.preprocess(
     return items?.map((v) => v.toUpperCase());
   },
   z
-    .array(z.string().length(2, "Jurisdiction must be a 2-letter ISO code"))
+    .array(
+      // Deliberately not the closed JURISDICTIONS enum: a new ISO code should
+      // not need a deploy. Letters only, though — "12" is two characters but
+      // not a country, and `contains`-style filters would silently match none.
+      z
+        .string()
+        .regex(/^[A-Z]{2}$/, "Jurisdiction must be a 2-letter ISO code"),
+    )
     .optional(),
 );
 
