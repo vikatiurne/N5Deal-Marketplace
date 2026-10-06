@@ -1,21 +1,20 @@
 # Architecture — N5Deal Marketplace
 
 B2B marketplace for licensed financial products (EMI, PI, MiCA/CASP, VASP,
-banking licences). Buyer posts what it is looking for and what budget it has,
-seller posts a concrete asset, the two exchange inquiries **without ever seeing
-each other's contacts**, and a manager moderates both sides.
+banking licences). A buyer posts what it is looking for and its budget, a seller
+posts a concrete asset, the two exchange inquiries **without ever seeing each
+other's contacts**, and a manager moderates both sides.
 
-Документ постепенно дополняется по мере выполнения задач (`docs/tasks/`).
-Правило: если решение принято и влияет на модель данных или структуру кода —
-оно здесь.
+The document grows as tasks land (`docs/tasks/`). Rule: if a decision changes the
+data model or the shape of the code, it belongs here.
 
 ---
 
 ## Problem, roles, and boundaries
 
-**Problem.** The market for regulated-entity licences is reached through brokers
-and warm introductions. Buyers cannot see who is selling, sellers cannot see who
-is buying, and neither side can filter by jurisdiction/licence/price. The
+**Problem.** Regulated-entity licences are bought through brokers and warm
+introductions. Buyers cannot see who is selling, sellers cannot see who is
+buying, and neither side can filter by jurisdiction, licence type or price. The
 product replaces the "who do you know" channel with a searchable catalogue plus
 a blind two-sided inquiry flow.
 
@@ -23,7 +22,7 @@ a blind two-sided inquiry flow.
 
 | Role    | Reads                                   | Writes                                                                | Cannot                                                                |
 | ------- | --------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Guest   | `/`, `/assets`, asset card, seller name | —                                                                     | contact form, dashboards, smart-search rate limit keyed by IP only    |
+| Guest   | `/`, `/assets`, asset card, seller name | —                                                                     | contact form, dashboards; smart-search rate limit keyed by IP only    |
 | Buyer   | catalogue, buyer cards, own inquiries   | buyer profile, inquiries `initiatorRole = BUYER`                      | seller contact data (only `displayName` + `company`), asset editing   |
 | Seller  | own assets + their inquiries, buyers    | assets (`DRAFT/PUBLISHED/PAUSED`), inquiries `initiatorRole = SELLER` | other sellers' assets, own asset deletion, moderation, buyer profiles |
 | Manager | everything, incl. audit log             | user status, asset status, audit entries                              | own account moderation, `DRAFT` (not a moderation state)              |
@@ -33,21 +32,24 @@ Two invariants shape the whole codebase:
 1. **Contacts are never exchanged.** A seller sees buyers as `UserSummary`
    (`displayName`, `company`, budget) — no email, no phone. Same in reverse.
 2. **The public catalogue only ever contains `PUBLISHED` assets owned by
-   `ACTIVE` users.** Enforced in the repository (`listAssets`), not in the UI.
+   `ACTIVE` users.** Enforced in the repository (`listAssets` takes
+   `sellerStatus: "ACTIVE"`, and the public callers pass it) and on the detail
+   page (404 unless both hold), not in the UI. `MANAGER` bypasses the detail
+   check so the moderation table can open any listing.
 
 ## Stack
 
-| Concern    | Choice                               | Why                                                                                                                                            |
-| ---------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework  | Next.js 15 App Router, RSC           | server-first by default; mutations are server actions so the client never holds write logic; `revalidatePath` is one line                      |
-| Language   | TypeScript `strict`                  | `exactOptionalPropertyTypes`/`noUncheckedIndexedAccess` catch the two bug classes this app is prone to (filters, nullable rows)                |
-| Data       | Prisma + SQLite                      | relational domain (assets↔inquiries↔users) with zero infrastructure for a demo that must `npm i && npm run dev`; Postgres is a datasource swap |
-| Auth       | Auth.js v5 Credentials, JWT session  | no email provider, no OAuth app registration; JWT keeps server actions cheap, DB status re-checked on every request for instant suspension     |
-| Styling    | Tailwind v4 + `radix-ui` + shadcn    | tokens in CSS, primitives copied into `components/ui`, no second UI kit; `radix-ui` unified package already provides Dialog/Sheet/Table        |
-| Validation | Zod                                  | every input (query string, form, AI output, server action) parsed at the boundary before any write                                             |
-| AI         | OpenAI Chat Completions over `fetch` | `response_format: json_object` + injected `LlmClient` interface; see [AI smart search](#ai-smart-search-task-08)                               |
-| Tests      | Vitest + real SQLite fixture DB      | filters/query-builder logic is only trustworthy when run against the real engine; Zod schemas need no DOM                                      |
-| Money      | integer `price`, 3-letter `currency` | no float rounding; EUR/USD/GBP only, so no FX column in the demo                                                                               |
+| Concern    | Choice                               | Why                                                                                                                                              |
+| ---------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Framework  | Next.js 15 App Router, RSC           | server-first by default; mutations are server actions, so the client never holds write logic; `revalidatePath` is one line                       |
+| Language   | TypeScript `strict`                  | `exactOptionalPropertyTypes` / `noUncheckedIndexedAccess` catch the two bug classes this app is prone to: filters and nullable rows              |
+| Data       | Prisma + SQLite (dev)                | relational domain (assets ↔ inquiries ↔ users) with zero infrastructure; Postgres is an explicit, documented swap (below)                        |
+| Auth       | Auth.js v5 Credentials, JWT session  | no email provider, no OAuth app registration; JWT keeps server actions cheap, while DB status is re-read on every request for instant suspension |
+| Styling    | Tailwind v4 + `radix-ui` + shadcn    | tokens in CSS, primitives copied into `components/ui`, no second UI kit; the unified `radix-ui` package already ships Dialog/Sheet/Table         |
+| Validation | Zod                                  | every input (query string, form, AI output, server action) parsed at the boundary, before any write                                              |
+| AI         | OpenAI Chat Completions over `fetch` | `response_format: json_object` plus an injected `LlmClient` interface; see [AI smart search](#ai-smart-search-task-08)                           |
+| Tests      | Vitest + a real SQLite fixture DB    | filter/query logic is only trustworthy against a real engine; Zod schemas need no DOM                                                            |
+| Money      | integer `price`, 3-letter `currency` | no float rounding; EUR/USD/GBP only, so no FX table in the demo                                                                                  |
 
 ## Data model
 
@@ -64,38 +66,38 @@ User ──────────────┬──< Asset >─────
 └──< AuditLog      │
 ```
 
-Relations, all with `onDelete: Cascade` from the owning side:
+Relations, all cascading from the owning side:
 
-- `User 1—N Asset` — seller owns listings. Deleting a user row would cascade,
+- `User 1—N Asset` — a seller owns listings. Deleting a user row would cascade,
   which is why moderation never deletes: it flips `status` (see
   [Moderation](#moderation-task-07)).
 - `User 1—1 BuyerProfile` — only for `role = BUYER`; carries
-  `jurisdictions`/`licenseTypes`/budget/description used for seller↔buyer
+  `jurisdictions` / `licenseTypes` / budget / description used for seller↔buyer
   matching.
-- `Asset 1—N Inquiry`, `User 1—N Inquiry` — an inquiry is
-  `(assetId, buyerId, initiatorRole)` unique: one message per direction per pair.
+- `Asset 1—N Inquiry`, `User 1—N Inquiry` — an inquiry is unique on
+  `(assetId, buyerId, initiatorRole)`: one message per direction per pair.
 - `User 1—N AuditLog` — `actorId`; `targetType/targetId` is polymorphic
   (`USER | ASSET`), which SQLite cannot express as a real FK, so referential
   integrity for the target is enforced in `lib/auth/permissions.ts` and the
   repository.
 
-Enums are deliberately closed (`Role`, `AssetStatus`, `LicenseType`, `Role`-
-adjacent `AuditAction`, `AuditTargetType`): a typo in a UI button must fail
-validation, not create a new category.
+Enums are deliberately closed (`Role`, `AssetStatus`, `LicenseType`,
+`AuditAction`, `AuditTargetType`): a typo in a UI button must fail validation,
+not create a new category.
 
 ---
 
 ## Data model decisions
 
-### 1. `Inquiry` — одна таблица, направление в `initiatorRole` (Task 06)
+### 1. `Inquiry` — one table, direction in `initiatorRole` (Task 06)
 
-**Контекст.** Покупатель пишет продавцу (`/assets/[id]` → «Contact seller»),
-продавец хочет написать покупателю (`/seller/buyers/[id]` → «Contact buyer»).
-Задача 06 предлагала два варианта: отдельная модель `SellerMessage` или
+**Context.** A buyer writes to a seller (`/assets/[id]` → “Contact seller”), and
+a seller wants to write to a buyer (`/seller/buyers/[id]` → “Contact buyer”).
+Task 06 proposed two options: a separate `SellerMessage` model, or a
 direction-agnostic `Inquiry`.
 
-**Решение:** одна модель `Inquiry` с полем `initiatorRole`
-(`BUYER` | `SELLER`, default `BUYER`) и `readAt`.
+**Decision:** one `Inquiry` model with `initiatorRole`
+(`BUYER` | `SELLER`, default `BUYER`) and `readAt`.
 
 ```prisma
 model Inquiry {
@@ -109,105 +111,107 @@ model Inquiry {
 }
 ```
 
-**Почему так:**
+**Why:**
 
-| Критерий             | `Inquiry` + `initiatorRole`                                                                                       | Отдельная `SellerMessage`                |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| Смысл домена         | Совпадает с CONTEXT: «contact request between buyer and seller about an asset» — направление не часть определения | Второй тип сообщения с той же семантикой |
-| Метаданные           | Один `readAt`, одно место для аудита и badge-ов                                                                   | Две колонки прочтения, две модели в UI   |
-| Ответ продавца       | `initiatorRole = SELLER` по тому же `(asset, buyer)` не конфликтует с уникальным индексом                         | Отдельная таблица                        |
-| Миграция на Postgres | Одна таблица                                                                                                      | Две таблицы + join для «диалога»         |
-| Ограничения          | Нельзя отправить два сообщения в одну сторону по одной паре                                                       | Можно, но тогда нужен thread-модель      |
+| Criterion             | `Inquiry` + `initiatorRole`                                                                                       | Separate `SellerMessage`                       |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Domain meaning        | Matches CONTEXT: “contact request between buyer and seller about an asset” — direction is not part of the concept | A second message type with identical semantics |
+| Metadata              | One `readAt`, one place for badges and audit                                                                      | Two read columns, two models in the UI         |
+| Seller reply          | `initiatorRole = SELLER` on the same `(asset, buyer)` does not collide with the unique index                      | Separate table                                 |
+| Migration to Postgres | One table                                                                                                         | Two tables + a join for a “conversation”       |
+| Limits                | Cannot send two messages in one direction per pair                                                                | Can, but then needs a thread model             |
 
-**Чем платим:** один инвайт на пару `(asset, buyer)` в каждом направлении —
-повторное сообщение «уже отправлено». Это осознанный компромисс: полноценных
-тредов с ответами в рамках задачи нет, а unlimited-сообщения без модели
-переписки только создают шум в данных.
+**What it costs:** one message per `(asset, buyer)` per direction — a repeat send
+answers “already sent”. A deliberate trade-off: full reply threads are out of
+scope for the assignment, and unlimited messages without a conversation model
+only pollute the data.
 
-**Следствия в коде:**
+**Consequences in code:**
 
-- репозиторий: `findInquiry(assetId, buyerId, initiatorRole)`,
-  `listIncomingInquiries({ sellerId, ... })` — только `initiatorRole = BUYER`;
-- «мои inquiry» покупателя фильтруются по `initiatorRole = BUYER`, поэтому
-  сообщения продавца не попадают в исходящие;
-- `readAt` проставляется только получателем (продавцом) и только по инбайксерам,
-  принадлежащим его активам (`markInquiriesRead` фильтрует по `asset.sellerId`);
-- покупатель никогда не видит контактов продавца: наружу отдаются только
-  `displayName` и `company` (`UserSummary`).
+- repository: `findInquiry(assetId, buyerId, initiatorRole)`,
+  `listIncomingInquiries({ sellerId, ... })` — only `initiatorRole = BUYER`;
+- a buyer's own inquiries filter on `initiatorRole = BUYER`, so seller replies
+  never appear in their outgoing list;
+- `readAt` is set only by the recipient (the seller) and only on inquiries
+  belonging to their assets (`markInquiriesRead` filters on `asset.sellerId`);
+- a buyer never sees seller contact details: only `displayName` and `company`
+  (`UserSummary`) leave the server.
 
-### 2. SQLite: массивы как JSON-строки (Task 02)
+### 2. Arrays as JSON strings (Task 02)
 
-`BuyerProfile.jurisdictions` и `licenseTypes` — `String` с `JSON.stringify`,
-парсятся в репозитории (`parseJsonArray`) и существуют в домене как `string[]`.
-Причина — SQLite без типа массива; trade-off зафиксирован здесь, при переезде на
-Postgres эти колонки становятся `text[]` без изменения кода домена и UI.
+`BuyerProfile.jurisdictions` and `licenseTypes` are `String` columns holding
+`JSON.stringify` output, parsed in the repository (`parseJsonArray`) and existing
+in the domain as `string[]`. The reason is SQLite's missing array type; the
+trade-off is recorded here, and on Postgres these columns become `text[]`
+without touching domain or UI code.
 
-Поиск по ним — `LIKE` (`contains`) прямо по JSON-строке: для демо-набора это
-достаточно и не требует триггеров.
+Search over them is `LIKE` (`contains`) straight on the JSON string: enough for
+the demo dataset, and it needs no triggers.
 
-### 3. Ownership проверяется в репозитории и в экшене (Task 06)
+### 3. Ownership checked in the repository and in the action (Task 06)
 
-`findOwnedAsset(assetId, sellerId)` возвращает `null` вместо исключения:
+`findOwnedAsset(assetId, sellerId)` returns `null` instead of throwing:
 
-- страница `/seller/assets/[id]/edit` → `notFound()` (404, нет утечки факта
-  существования чужого актива);
-- server action → `{ ok: false, error }` без записи и без 500.
+- page `/seller/assets/[id]/edit` → `notFound()` (404, no leak of whether
+  another seller's asset exists);
+- server action → `{ ok: false, error }` with no write and no 500.
 
-Серверные экшены Next.js не умеют отдавать 403 (все ответы — 200 + RSC-payload),
-поэтому «403 semantics» выражены типизированным результатом, а не HTTP-кодом.
+Next.js server actions cannot return 403 (every response is 200 + RSC payload),
+so “403 semantics” are expressed as a typed result rather than an HTTP code.
 
-### 4. Server actions вместо REST (CONTEXT, правило 5)
+### 4. Server actions instead of REST (CONTEXT, rule 5)
 
-Мутации живут в `src/server/<role>.ts` и возвращают общий
-`ActionResult { ok, error?, redirectTo? }`. UI читает его один раз: тост +
-`router.refresh()`. `revalidatePath` вызывается на каждый затронутый путь
-(`/seller`, `/seller/assets`, `/assets`, карточка актива).
+Mutations live in `src/server/<role>.ts` and return a shared
+`ActionResult { ok, error?, redirectTo? }`. The UI reads it once: toast +
+`router.refresh()`. `revalidatePath` is called for every affected path
+(`/seller`, `/seller/assets`, `/assets`, the asset card).
 
-Валидация — Zod (`src/lib/validation/*`) на входе экшена, до любой записи;
-уникальные констрейнты БД (`P2002`) ловятся и превращаются в понятный текст,
-а не в 500.
+Validation is Zod (`src/lib/validation/*`) at the action entry point, before any
+write; DB unique constraints (`P2002`) are caught and turned into plain text
+instead of a 500.
 
 ---
 
 ## Moderation (Task 07)
 
-### 4. Auth: хост и статус аккаунта
+### 5. Auth: host trust and account status
 
-- `trustHost: true` в конфиге NextAuth — приложение self-hosted, и без этого
-  флага Auth.js в `next start` отвечает `UntrustedHost` на `/api/auth/*`
-  (в `next dev` это не воспроизводится).
-- Правила доступа живут в `lib/auth/*`, а не в страницах: `requireUser()` и
-  `requireRole()` — единственный способ зайти в закрытый раздел, они же
-  стоят в каждом server action. Бизнес-правило «менеджера нельзя заблокировать»
-  вынесено в чистую функцию `memberModerationError()` (`lib/auth/permissions.ts`),
-  поэтому тестируется без HTTP.
+- `trustHost: true` in the NextAuth config — the app is self-hosted, and without
+  it Auth.js answers `UntrustedHost` on `/api/auth/*` in `next start` (this does
+  not reproduce in `next dev`).
+- Access rules live in `lib/auth/*`, not in pages: `requireUser()` and
+  `requireRole()` are the only way into a protected area, and they also guard
+  every server action. The business rule “a manager cannot be suspended” is a
+  pure function, `memberModerationError()` (`lib/auth/permissions.ts`), so it is
+  testable without HTTP.
 
-### 5. Модерация — только смена статуса, никогда `delete`
+### 6. Moderation flips status, never `delete`
 
-`moderateUser` и `moderateAsset` не удаляют строки:
+`moderateUser` and `moderateAsset` never remove rows:
 
-- soft-delete участника = `User.status = DELETED`, поэтому его объявления
-  (каскад не срабатывает — статус, не удаление) и все inquiry обеих сторон
-  остаются в базе, видны менеджеру и продавцу в инбоксе;
-- `Asset.status = REMOVED` убирает объявление из `/assets`, но оставляет его в
-  `/manager/assets` и в кабинете продавца, откуда его можно восстановить
+- soft-deleting a member = `User.status = DELETED`, so their listings (the
+  cascade does not fire — it is a status, not a delete) and every inquiry on
+  both sides stay in the database, visible to the manager and to the seller's
+  inbox;
+- `Asset.status = REMOVED` hides a listing from `/assets` but keeps it in
+  `/manager/assets` and in the seller's own table, from where it can be restored
   (`Reinstate & publish`);
-- `SUSPENDED` участника не может войти (Credentials provider бросает
-  `account_suspended`), а уже выданный JWT перестаёт работать: `requireUser()`
-  перечитывает `role`/`status` из БД на каждом запросе (`findAccountAccess`),
-  а не доверяет клеймам токена, minted в момент логина.
+- a `SUSPENDED` user cannot sign in (the Credentials provider raises
+  `account_suspended`), and an already-issued JWT stops working: `requireUser()`
+  re-reads `role` / `status` from the database on every request
+  (`findAccountAccess`) instead of trusting claims minted at login time.
 
-Следствие для покупателя: «профиль помечен неактивным» = пользователь выпадает
-из каталога покупателей (`listBuyers` фильтрует `status: ACTIVE`) и из
-подбора совпадений, но его inquiry по-прежнему виден продавцу.
+Consequence for a buyer: “profile marked inactive” means the user disappears
+from the buyer catalogue (`listBuyers` filters `status: ACTIVE`) and from
+matching, but their inquiries remain visible to the seller.
 
-**Осознанное решение:** suspension участника не трогает его объявления. Это два
-независимых рычага — модерация аккаунта и модерация листинга; в таблице
-`/manager/assets` у продавца с не-ACTIVE статусом показан бейдж, а скрыть
-конкретное объявление можно отдельно (`Pause` / `Remove`). Автоматическое
-снятие всех листингов сделало бы восстановление аккаунта необратимым.
+**Deliberate decision:** suspending an account does not touch its listings. They
+are two independent levers — account moderation and listing moderation. The
+`/manager/assets` table shows a badge for a seller with a non-ACTIVE status, and
+a specific listing can be hidden separately (`Pause` / `Remove`). Unpublishing
+every listing automatically would make account recovery irreversible.
 
-### 6. `AuditLog` — append-only, закрытый набор действий
+### 7. `AuditLog` — append-only, closed action set
 
 ```prisma
 model AuditLog {
@@ -220,23 +224,25 @@ model AuditLog {
 }
 ```
 
-- `action` и `targetType` — enum'ы, а не строки: в лог нельзя попасть мусор из
-  UI или из опечатки в вызывающем коде; набор действий известен заранее.
-- `meta.label` — снимок читаемого имени цели на момент действия. Если цель
-  потом переименуют, запись в логе останется понятной; живой fallback
-  (`resolveTargetLabels`) подхватывает текущее имя, если снимка нет.
-- Пишет только `createAuditLog` из `src/server/manager.ts`; обновления и
-  удаления в репозитории не предусмотрены.
+- `action` and `targetType` are enums, not strings: junk cannot enter the log
+  from the UI or from a typo at the call site; the action set is known upfront.
+- `meta.label` is a snapshot of the target's readable name at action time. If
+  the target is renamed later, the log entry still reads clearly; a live
+  fallback (`resolveTargetLabels`) picks up the current name when no snapshot
+  exists.
+- Only `createAuditLog` in `src/server/manager.ts` writes it; the repository
+  exposes no update or delete.
 
-### 7. Менеджеры неприкосновенны
+### 8. Managers are untouchable
 
-`target.role === "MANAGER" && status !== "ACTIVE"` → `{ ok: false }` с текстом
-«Manager accounts cannot be suspended or deleted», запись в лог не создаётся.
-Это закрывает и «заблокировать себя», и «выкинуть другого админа»: восстановление
-(`ACTIVE`) при этом разрешено. Guard продублирован в UI — кнопки заблокированы.
+`target.role === "MANAGER" && status !== "ACTIVE"` → `{ ok: false }` with
+“Manager accounts cannot be suspended or deleted”, and no audit entry is
+written. This closes both “suspend yourself” and “kick out the other admin”;
+reactivation (`ACTIVE`) stays allowed. The guard is duplicated in the UI — the
+buttons are disabled.
 
-Менеджер также не может перевести объявление в `DRAFT`: приватный черновик —
-это состояние продавца, а не модерации (`moderationStatusValues`).
+A manager also cannot move an asset to `DRAFT`: a private draft is a seller's
+state, not a moderation one (`moderationStatusValues`).
 
 ---
 
@@ -248,12 +254,11 @@ app/ (routes)  →  server/<role>.ts (server actions)  →  lib/db/repositories/
                                   ↘  lib/auth/guards.ts  (requireUser / requireRole)
 ```
 
-- Компоненты и страницы **никогда** не импортируют `prisma` напрямую.
-- Репозитории возвращают plain domain-объекты из `src/types`, а не Prisma rows:
-  `toDomain` отсекает `passwordHash` и любые Prisma-специфичные типы.
-- Guards стоят и в layout (`/seller/layout.tsx`, `/buyer/layout.tsx`), и в
-  каждой странице, и в каждом экшене — middleware не является единственной
-  линией обороны.
+- Components and pages **never** import `prisma` directly.
+- Repositories return plain domain objects from `src/types`, not Prisma rows:
+  `toDomain` strips `passwordHash` and any Prisma-specific types.
+- Guards sit in layouts (`/seller/layout.tsx`, `/buyer/layout.tsx`), in every
+  page, and in every action — middleware is not the only line of defence.
 
 ---
 
@@ -264,134 +269,131 @@ SmartSearchBar (client)  →  POST /api/smart-search  →  parseQuery()
                                                            ↘ createLlmClient() (fetch)
 ```
 
-- **Провайдер — OpenAI Chat Completions через `fetch`, не Anthropic.** Задача
-  сводится к извлечению JSON из текста: у OpenAI есть `response_format:
-{"type":"json_object"}`, который убирает большую часть промпт-инжиниринга
-  («верни только JSON» в system prompt остаётся как страховка). Anthropic
-  потребовал бы того же Zod-guard плюс лишний round-trip на tool call без
-  выигрыша. Провайдер меняется одной функцией `createLlmClient()`.
-- **Почему `fetch`, а не SDK `openai`:** SDK стал бы единственной новой
-  runtime-зависимостью проекта, а REST-вызов — это ~30 строк и тривиальный
-  mock в тестах через `LlmClient`. `OPENAI_BASE_URL` позволяет подменить
-  endpoint (Azure-совместимый шлюз, локальный mock в E2E-проверках).
-- **LLM — недоверенный источник.** Ответ проходит `smartFiltersSchema`
-  (`.strict()` — лишние ключи отбрасываются целиком, поэтому модель не может
-  дописать в URL своё), `JSON.parse` с очисткой code fences и проверкой
-  `priceMin <= priceMax`. Любой сбой, мусор или пустой объект даёт
-  **degraded fallback**: исходная фраза идёт в `q` как обычный keyword-поиск,
-  клиент показывает toast. Приложение не падает никогда.
-- **`explanation` собирается локально** из уже провалидированных фильтров
-  (`describeFilters`), а не генерируется моделью: текст обязан совпадать с
-  реальным URL, иначе баннер будет врать пользователю.
-- **Rate limit** — `lib/ai/rateLimit.ts`, 10 запросов/мин на пользователя
-  (session id) или на IP для анонимов, in-memory Map с окном в 60 секунд.
-  Это грубая защита от злоупотреблений, а не жёсткая квота: состояние живёт в
-  процессе, сбрасывается при деплое и не разделяется между инстансами.
-  Реальный потолок расходов — 15-секундный таймаут запроса к LLM в
-  `llmClient.ts`.
-- **Приватность:** наружу уходит только строка, которую пользователь сам
-  ввёл в поле поиска — никаких записей, email или профилей. Сырой ответ
-  модели логируется только при `NODE_ENV !== "production"`, API key читается
-  исключительно на сервере и никогда не попадает в клиентский бандл.
-- **`/api/smart-search` — единственный REST-эндпоинт проекта** (CONTEXT,
-  правило 5): клиентский компонент не может вызвать server action, а
-  `ai=1`/`exp=` в URL нужны, чтобы объяснение переживало refresh и шаринг
-  ссылки.
+- **Provider: OpenAI Chat Completions over `fetch`, not Anthropic.** The task
+  reduces to extracting JSON from text: OpenAI has
+  `response_format: {"type":"json_object"}`, which removes most of the prompt
+  engineering (“return only JSON” in the system prompt stays as a belt-and-
+  braces). Anthropic would need the same Zod guard plus an extra round-trip on a
+  tool call, for no gain. The provider changes in one function,
+  `createLlmClient()`.
+- **Why `fetch` and not the `openai` SDK:** the SDK would be the project's only
+  new runtime dependency, while the REST call is ~30 lines and a trivial mock in
+  tests via `LlmClient`. `OPENAI_BASE_URL` lets us swap the endpoint
+  (Azure-compatible gateway, local mock in E2E checks).
+- **The LLM is an untrusted source.** The response passes
+  `smartFiltersSchema` (`.strict()` — unknown keys are dropped wholesale, so the
+  model cannot write extra parameters into the URL), `JSON.parse` with code-fence
+  stripping, and a `priceMin <= priceMax` check. Any failure, garbage or empty
+  object produces a **degraded fallback**: the original phrase goes into `q` as a
+  plain keyword search and the client shows a toast. The app never breaks.
+- **`explanation` is built locally** from the already-validated filters
+  (`describeFilters`), not generated by the model: the text must match the real
+  URL, otherwise the banner lies to the user.
+- **Rate limit** — `lib/ai/rateLimit.ts`, 10 requests/minute per user (session
+  id) or per IP for anonymous visitors, an in-memory Map with a 60-second window.
+  A blunt abuse guard, not a hard quota: the state lives in the process, resets
+  on deploy, and is not shared between instances. The real spend ceiling is the
+  15-second LLM timeout in `llmClient.ts`.
+- **Privacy:** the only thing sent out is the string the user typed into the
+  search field — no records, emails or profiles. The raw model response is
+  logged only when `NODE_ENV !== "production"`, and the API key is read on the
+  server only; it never reaches the client bundle.
+- **`/api/smart-search` is the only REST endpoint in the project** (CONTEXT,
+  rule 5): a client component cannot invoke a server action, and `ai=1` / `exp=`
+  in the URL are what make the explanation survive a refresh or a shared link.
+
+---
 
 ## UI polish (Task 09)
 
-### 8. Дизайн-токены: контраст важнее палитры
+### 9. Design tokens: contrast over palette
 
-Цвета статусов и лицензий вынесены в `lib/badgeStyles.ts` и в
-`globals.css`, потому что инлайн-Tailwind-классы расходятся между
-страницами, а `--destructive` в дефолтной теме **не проходит AA** на
-собственных тонах:
+Status and licence colours live in `lib/badgeStyles.ts` and `globals.css`,
+because inline Tailwind classes drift between pages, and `--destructive` in the
+default theme **fails AA** on its own tints:
 
-| Токен                                                      | Значение                   | Где применяется                                       |
-| ---------------------------------------------------------- | -------------------------- | ----------------------------------------------------- |
-| `--warning`                                                | `#fbbf24`                  | `PENDING`/`SUSPENDED`, amber уходит статусным смыслам |
-| `--warning-foreground`                                     | `#0a0a0a`                  | текст на solid `--warning`                            |
-| `--destructive-text`                                       | `#f87171`                  | текст/иконки на `*-tint` подложке                     |
-| `--destructive-solid`                                      | `#dc2626`                  | solid-заливка с белым текстом                         |
-| `--shadow-card`, `--shadow-card-hover`, `--shadow-popover` | oklch                      | глубина без колебания яркости                         |
-| `--ease-soft`                                              | `cubic-bezier(.2,.8,.2,1)` | один easing для hover/появления                       |
+| Token                                                      | Value                      | Used for                                               |
+| ---------------------------------------------------------- | -------------------------- | ------------------------------------------------------ |
+| `--warning`                                                | `#fbbf24`                  | `PENDING` / `SUSPENDED` — amber is reserved for status |
+| `--warning-foreground`                                     | `#0a0a0a`                  | text on solid `--warning`                              |
+| `--destructive-text`                                       | `#f87171`                  | text/icons on `*-tint` backgrounds                     |
+| `--destructive-solid`                                      | `#dc2626`                  | solid fill with white text                             |
+| `--shadow-card`, `--shadow-card-hover`, `--shadow-popover` | oklch                      | depth without brightness swing                         |
+| `--ease-soft`                                              | `cubic-bezier(.2,.8,.2,1)` | one easing for hover and entrance                      |
 
-Измеренные отношения контраста (текст на соответствующей 10% подложке,
-AA требует 4.5:1):
+Measured contrast ratios (text on the matching 10% tint; AA requires 4.5:1):
 
-| Элемент                   | Цвет                    | Контраст                 |
-| ------------------------- | ----------------------- | ------------------------ |
-| EMI                       | `sky-400` `#38bdf8`     | 7.24:1                   |
-| PI                        | `violet-400` `#a78bfa`  | 5.82:1                   |
-| MICA / CASP               | `fuchsia-400` `#e879f9` | 6.44:1                   |
-| VASP                      | `rose-400` `#fb7185`    | 5.97:1                   |
-| BANK                      | `cyan-400` `#22d3ee`    | 8.46:1                   |
-| OTHER                     | `slate-400` `#94a3b8`   | 6.15:1                   |
-| warning badge             | `#fbbf24` на 10%        | 9.07:1                   |
-| destructive на 10% (было) | `#ef4444`               | 4.44:1 — **провал AA**   |
-| destructive-text на 10%   | `#f87171`               | 5.82:1 (на 20% — 4.92:1) |
-| solid destructive (было)  | белый на `#ef4444`      | 3.76:1 — **провал AA**   |
-| solid-destructive         | белый на `#dc2626`      | 4.83:1                   |
+| Element                     | Colour                  | Contrast               |
+| --------------------------- | ----------------------- | ---------------------- |
+| EMI                         | `sky-400` `#38bdf8`     | 7.24:1                 |
+| PI                          | `violet-400` `#a78bfa`  | 5.82:1                 |
+| MICA / CASP                 | `fuchsia-400` `#e879f9` | 6.44:1                 |
+| VASP                        | `rose-400` `#fb7185`    | 5.97:1                 |
+| BANK                        | `cyan-400` `#22d3ee`    | 8.46:1                 |
+| OTHER                       | `slate-400` `#94a3b8`   | 6.15:1                 |
+| warning badge               | `#fbbf24` on 10%        | 9.07:1                 |
+| destructive on 10% (before) | `#ef4444`               | 4.44:1 — **AA fail**   |
+| destructive-text on 10%     | `#f87171`               | 5.82:1 (4.92:1 on 20%) |
+| solid destructive (before)  | white on `#ef4444`      | 3.76:1 — **AA fail**   |
+| solid-destructive           | white on `#dc2626`      | 4.83:1                 |
 
-Оба «провала» остались бы незаметными визуально, но ломают AA в
-`Badge`/`Button`/`Toast`, поэтому исправлены в самих примитивах, а не в
-call-site'ах. Лицензии намеренно не используют amber/emerald: эти цвета
-заняты под `PENDING`/`SUSPENDED`/`PUBLISHED`.
+Both failures would have stayed invisible to the eye but break AA inside
+`Badge` / `Button` / `Toast`, so they were fixed in the primitives rather than at
+call sites. Licences deliberately avoid amber/emerald: those hues are taken by
+`PENDING` / `SUSPENDED` / `PUBLISHED`.
 
-### 9. Тёмная тема — единственная
+### 10. Dark theme is the only theme
 
-`layout.tsx` всегда ставит `<html className="dark">`, поэтому в
-`globals.css` нет отдельного `.dark`-блока: он был побайтно равен `:root`
-и только создавал ложное впечатление, что тему можно переключить. Тёмная
-тема — источник истины, `:root` совпадает с ней.
+`layout.tsx` always sets `<html className="dark">`, so `globals.css` has no
+separate `.dark` block: it was byte-identical to `:root` and only created the
+false impression that the theme could be toggled. Dark is the source of truth.
 
-### 10. Мобильная навигация: Sheet, а не новый пакет
+### 11. Mobile navigation: Sheet, not a new package
 
-`ui/sheet.tsx` собран на `Dialog` из уже установленного `radix-ui` v1.6.7
-(в этом пакете Dialog входит в unified-модуль), поэтому новая зависимость
-не понадобилась. Ниже `md` горизонтальный nav скрывается, в шапке остаются
-brand + кнопка меню; drawer фокусируется, ставит `aria-hidden` на `<main>`,
-блокирует скролл body и закрывается через Escape, оверлей, кнопку закрытия
-или переход по ссылке. На десктопе сессия видна явно: dropdown с email и
-badge роли — раньше единственным признаком входа был текст кнопки Logout.
+`ui/sheet.tsx` is built on `Dialog` from the already-installed `radix-ui`
+v1.6.7 (Dialog is part of that package's unified module), so no new dependency
+was needed. Below `md` the horizontal nav hides and the header keeps brand + a
+menu button; the drawer takes focus, sets `aria-hidden` on `<main>`, locks body
+scroll, and closes on Escape, overlay click, the close button, or navigating a
+link. On desktop the session is visible explicitly: a dropdown with email and a
+role badge — previously the only sign of being logged in was the Logout label.
 
-### 11. Ролевые nav — сетка, а не горизонтальный скролл
+### 12. Role nav — a grid, not a horizontal scroll
 
-Полоса из 5 пунктов не помещалась в 375px и прятала пункты в невидимом
-скролле. Ниже `sm` это 2-колоночная сетка (все пункты видны, скролла нет),
-`sm..lg` — горизонтальная полоса, `lg` — sticky-колонка.
+A five-item strip did not fit at 375px and hid items in an invisible scroller.
+Below `sm` it is a two-column grid (every item visible, no scrolling),
+`sm..lg` a horizontal strip, `lg` a sticky sidebar.
 
-### 12. Таблицы: скролл вместо коллапса
+### 13. Tables: scroll instead of collapse
 
-Таблицы менеджера (8 колонок, 806–994px) не сворачиваются в карточки:
-данные сравниваются по столбцам, и потеря колонки ломает задачу. Вместо
-этого обёртка `Table` получила `role="region"`, `tabIndex={0}` и focus-ring
-— обычный `overflow-x-auto` недоступен с клавиатуры (WCAG 2.1.1), а с
-`tabIndex` стрелки панорамируют область. Замер: фокус на контейнере,
-`scrollLeft` 0 → 120 за три `ArrowRight`. У каждой таблицы появился
-`<caption>`: скринридер теперь слышит, что сравнивает.
+Manager tables (8 columns, 806–994px) do not collapse into cards: the data is
+compared column-wise, and losing a column breaks the job. Instead the `Table`
+wrapper got `role="region"`, `tabIndex={0}` and a focus ring — a plain
+`overflow-x-auto` is unreachable from the keyboard (WCAG 2.1.1), while with
+`tabIndex` the arrow keys pan the region. Measured: focus on the container,
+`scrollLeft` 0 → 120 in three `ArrowRight` presses. Every table also gained a
+`<caption>`: a screen reader now hears what it is comparing.
 
-### 13. Мелкие a11y-правки, найденные при прогоне
+### 14. Small a11y fixes found during the audit
 
-- Валидационные сообщения под textarea были видны, но не объявлялись:
-  добавлены `aria-invalid` + `aria-describedby` с id (3 формы).
-- `MarkReadButton` в icon-варианте объявлял счётчик дважды
-  («Mark as read» + «Mark 3 inquiries as read») — теперь sr-only текст
-  только там, где нет видимой подписи.
-- Toast на каждую мутацию: `createAsset` возвращал `redirectTo` **до**
-  `toast()`, поэтому публикация листинга была единственной мутацией без
-  подтверждения; `signIn`/`registerAction` показывали ошибку только inline.
+- Validation messages under textareas were visible but never announced:
+  added `aria-invalid` + `aria-describedby` with ids (3 forms).
+- `MarkReadButton` in its icon variant announced the counter twice (“Mark as
+  read” + “Mark 3 inquiries as read”) — the sr-only text now appears only when
+  there is no visible label.
+- A toast for every mutation: `createAsset` returned `redirectTo` **before**
+  `toast()`, so publishing a listing was the only mutation without feedback;
+  `signIn` / `registerAction` showed errors inline only.
 
-### 14. Что проверено и как
+### 15. What was verified, and how
 
-`npm test`, `tsc --noEmit`, `eslint`, `prettier --check`, `next build` — без
-ошибок и предупреждений. Плюс headless-Chrome прогон через CDP (без новых
-зависимостей) по 17 маршрутам в 375px и 1280px: 0 ошибок и 0 предупреждений в
-консоли, 0 горизонтальных переполнений страницы. Отдельный прогон
-входа-в-роль для трёх ролей. Известное ограничение Next.js: `notFound()`
-отдаёт 200 с `<meta name="robots" content="noindex">` (корневой layout
-стримит шапку, поэтому статус не успевает зафиксироваться) — сам 404-экран при
-этом полноценный.
+`npm test`, `tsc --noEmit`, `eslint`, `prettier --check`, `next build` — no
+errors or warnings. Plus a headless-Chrome pass over CDP (no new dependencies)
+across 17 routes at 375px and 1280px: 0 errors and 0 warnings in the console, 0
+page-level horizontal overflow. A separate pass logs in as each of the three
+roles. Known Next.js limitation: `notFound()` returns 200 with
+`<meta name="robots" content="noindex">` (the root layout streams the header, so
+the status is never committed) — the 404 screen itself is fully functional.
 
 ---
 
@@ -400,95 +402,131 @@ badge роли — раньше единственным признаком вх
 ```
 test/globalSetup.ts          prisma db push --skip-generate --force-reset  (DATABASE_URL=file:./test.db)
         ↓
-src/lib/db/repositories/assets.test.ts   45 tests — real SQLite, real Prisma
+src/lib/db/repositories/assets.test.ts   47 tests — real SQLite, real Prisma
 src/lib/validation/*.test.ts            127 tests — pure Zod
 src/lib/ai/smartSearch.test.ts           17 tests — injected LlmClient
 ```
 
-Три правила, которые определили структуру:
+Three rules shaped the suite:
 
-- **Тесты фильтров идут против настоящей БД, а не мока репозитория.** Мок
-  повторяет ровно ту логику, которую мы хотим проверить, и всегда «зелёный»:
-  опечатку в `where`/`orderBy` он не поймает. `assets.test.ts` создаёт 7
-  активов, 2 продавцов и 2 покупателей, прогоняет каждый фильтр и комбинации,
-  проверяет пагинацию вместе с `total`, сортировку, ownership (`findOwnedAsset`
-  на чужом активе → `null`), счётчики инбокса продавца и входящие/исходящие
-  inquiry. Тестовая БД — отдельный файл `prisma/test.db`, пересоздаётся перед
-  прогоном; `fileParallelism: false`, потому что файлы делят одну схему.
-- **AI не тестируется сетью.** `createLlmClient()` — единственная точка выхода,
-  подменяется `LlmClient` в 17 тестах `parseQuery`, включая code fences, мусор,
-  лишние ключи и таймаут.
-- **Zod-тесты — это тесты контракта URL и форм**, а не покрытие строк: query string
-  приходит с повторяющимися параметрами, CSV-списками, пустыми строками от
-  сброшенных фильтров и мусором от ручного ввода. Каждый такой случай
-  зафиксирован явно, включая `priceMin > priceMax` (ошибка указывает на поле
-  `priceMin`) и запрет `MANAGER` при саморегистрации.
+- **Filter tests run against a real database, not a mocked repository.** A mock
+  restates exactly the logic we want to verify and is always green: it will not
+  catch a typo in `where` / `orderBy`. `assets.test.ts` creates 7 assets, 2
+  sellers and 2 buyers, exercises every filter and their combinations, checks
+  pagination together with `total`, sorting, ownership (`findOwnedAsset` on
+  someone else's asset → `null`), the seller's inbox counters, and
+  incoming/outgoing inquiries. The test database is a separate file
+  (`prisma/test.db`) recreated before each run; `fileParallelism: false` because
+  the files share one schema.
+- **AI is never tested over the network.** `createLlmClient()` is the single
+  exit point and is replaced by an `LlmClient` in 17 `parseQuery` tests,
+  including code fences, garbage, extra keys and timeouts.
+- **Zod tests cover the URL and form contract**, not line coverage: query
+  strings arrive with repeated parameters, CSV lists, empty strings from reset
+  filters, and manual-input garbage. Each of those cases is pinned explicitly,
+  including `priceMin > priceMax` (the error points at `priceMin`) and the ban
+  on self-registering as `MANAGER`.
 
-Тесты поймали два реальных бага, а не только подтвердили реализацию:
+The tests caught two real bugs instead of merely confirming the implementation:
 
-1. `markReadSchema`/`Inquiry` uniqueness — два сообщения от одного покупателя
-   по одному активу падали на `P2002`; тест теперь требует двух покупателей и
-   тем самым фиксирует ограничение «одно сообщение в направление».
-2. `assetFiltersSchema` принимал `?jurisdiction=12`: проверка `length(2)` считала
-   две цифры кодом страны. Заменено на `/^[A-Z]{2}$/` — и это **намеренно**
-   оставляет возможность добавить новую страну без деплоя, в отличие от
-   закрытого enum на пишущем пути (`JURISDICTIONS`).
+1. `markReadSchema` / `Inquiry` uniqueness — two messages from one buyer about
+   one asset failed on `P2002`; the test now requires two buyers and thereby
+   pins the “one message per direction” rule.
+2. `assetFiltersSchema` accepted `?jurisdiction=12`: a `length(2)` check treated
+   two digits as a country code. Replaced with `/^[A-Z]{2}$/`, which
+   **deliberately** still allows a new country to ship without a deploy, unlike
+   the closed enum on the write path (`JURISDICTIONS`).
 
 ## Known limitations
 
-| #   | Ограничение                                                                  | Почему так                                        | Что делать при росте                                                                         |
-| --- | ---------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| 1   | SQLite: один файл, нет конкурентных записей в проде, `LIKE` по JSON-массивам | Демо должно запускаться без инфраструктуры        | Перенос в Postgres: `text[]` + GIN/trgm, один скрипт миграции (ниже)                         |
-| 2   | `%` и `_` в поиске работают как LIKE-метасимволы                             | SQLite не экранирует их внутри bind-параметра     | Для публичного поиска — raw-запрос с `ESCAPE '\'`; сейчас зафиксировано тестом как поведение |
-| 3   | Rate limit AI — in-memory Map                                                | Нет Redis в демо; сбрасывается на рестарте/деплое | Upstash/Redis, ключ по userId                                                                |
-| 4   | Один инвайт на пару `(asset, buyer)` в каждом направлении, без тредов        | Полноценная переписка — отдельная модель          | `InquiryThread` + `InquiryMessage`, миграция по `initiatorRole`                              |
-| 5   | `notFound()` отдаёт HTTP 200 + `noindex` (streaming root layout)             | Поведение Next.js, не наш код                     | Вынесить 404-страницы в route group без стримащего layout                                    |
-| 6   | Фильтрация по JSON-массивам идёт `LIKE` — медленно и не индексируется        | Для 20 демо-активов индекса не нужно              | Postgres `text[]` + GIN, либо join-таблицы                                                   |
-| 7   | Нет e-mail подтверждения и восстановления пароля                             | Credentials provider без почты                    | Resend/Postmark + verify-token в `User`                                                      |
-| 8   | Upload файлов (лицензии, аудит) отсутствует                                  | Файлы — вне scope демо                            | S3-compatible storage + подписанные URL                                                      |
+| #   | Limitation                                                                    | Why                                                        | What to do when it grows                                                  |
+| --- | ----------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | SQLite: one file, no concurrent writes in production, `LIKE` over JSON arrays | The demo must start with zero infrastructure               | Move to Postgres: `text[]` + GIN/trgm, one migration script (below)       |
+| 2   | `%` and `_` in search act as LIKE metacharacters                              | SQLite does not escape them inside a bound parameter       | Raw query with `ESCAPE '\'` for public search; currently pinned by a test |
+| 3   | AI rate limit is an in-memory Map                                             | No Redis in the demo; resets on deploy and is per-instance | Upstash/Redis, key by userId                                              |
+| 4   | One message per `(asset, buyer)` per direction, no threads                    | Real conversations need their own model                    | `InquiryThread` + `InquiryMessage`, migrate along `initiatorRole`         |
+| 5   | `notFound()` returns HTTP 200 + `noindex` (streaming root layout)             | Next.js behaviour, not our code                            | Move 404 pages into a route group without the streaming layout            |
+| 6   | JSON-array filtering uses `LIKE` — slow and unindexed                         | 24 demo assets do not need an index                        | Postgres `text[]` + GIN, or join tables                                   |
+| 7   | No e-mail confirmation or password reset                                      | Credentials provider without mail                          | Resend/Postmark + verify-token on `User`                                  |
+| 8   | No file uploads (licence scans, diligence documents)                          | Files are outside the demo scope                           | S3-compatible storage + signed URLs                                       |
 
-## SQLite → Postgres: точная последовательность
+## SQLite → Postgres: exact sequence
 
-Замена datasource в этом проекте — одна миграция схемы плюс две правки в
-репозиториях, потому что доменный слой не знает про SQLite:
+Swapping the datasource here is one schema migration plus two repository edits,
+because the domain layer does not know it is running on SQLite:
 
-1. Создать базу (managed Postgres) и заменить `DATABASE_URL` на
-   `postgresql://…?sslmode=require`. Больше ничего в коде править не нужно:
-   Prisma-клиент абстрагирует драйвер.
-2. `npx prisma migrate dev --name postgres-baseline` — миграция создаст
-   таблицы заново. Данные из SQLite переносятся вручную (dump + `INSERT`), в
-   демо их нет.
+1. Create a managed Postgres database and set `DATABASE_URL` to
+   `postgresql://…?sslmode=require`, plus a `DIRECT_URL` (direct endpoint, no
+   pgbouncer) referenced by `directUrl` in the Prisma datasource — Migrate needs
+   transactions and refuses to run through a pooler.
+2. `npx prisma migrate dev --name postgres-baseline` builds the tables on
+   Postgres. Rows from SQLite are moved by hand (dump + `INSERT`); the demo has
+   nothing worth keeping. _Verified against a live Neon project: the provider
+   swap alone produced a clean baseline migration._
 3. `BuyerProfile.jurisdictions` / `licenseTypes`: `String` → `String[]`
-   (`text[]`). Доменный тип не меняется, но `parseJsonArray`/`JSON.stringify`
-   в `repositories/users.ts` становятся лишними — удалить вместе с тестами на
-   них.
-4. Фильтры по массивам: `contains` → `array_contains` (Prisma) или GIN-индекс.
-   До этого LIKE работать не будет.
-5. `AuditLog` получил бы настоящий FK на полиморфную цель — либо две таблицы,
-   либо nullable `targetUserId`/`targetAssetId` с `CHECK`.
-6. Проверить `prisma/test.db` → на CI оставить `file:` (быстро) или
-   поднять `postgres` сервис для честного покрытия `array_contains`.
+   (`text[]`). The domain type does not change, but `parseJsonArray` /
+   `JSON.stringify` in `repositories/users.ts` become redundant — delete them
+   together with their tests.
+4. Array filters: `contains` → Prisma's `array_contains` or a GIN index. Until
+   then, `LIKE` on JSON keeps working as it does today.
+5. `AuditLog` could gain a real FK to the polymorphic target — either two tables
+   or nullable `targetUserId` / `targetAssetId` with a `CHECK` constraint.
+6. Tests: keep `file:` on a laptop (fast), or run a `postgres` service in CI for
+   honest coverage of `array_contains`.
+7. Deploy: `vercel-build` = `prisma generate && prisma migrate deploy && next
+build`, with `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations) set as
+   separate env vars. Exact steps are in the README.
 
-## Что бы я сделал иначе
+## What I would do differently
 
-- **Массивы как join-таблицы с первого дня.** JSON-строка была сознательным
-  упрощением ради SQLite, но `BuyerProfile` — это по сути many-to-many
-  (`jurisdictions`, `licenseTypes`), и на Postgres `text[]` лучше не превращать
-  обратно. Если бы модель проектировалась заново, я бы сразу сделал
-  `BuyerJurisdiction(buyerId, code)` — это же и индекс, и нормализованный
-  фильтр, и никакого `LIKE` по JSON.
-- **Inquiries как тред с первого дня.** Ограничение «одно сообщение в
-  направление» — это не экономия, а запрет переписки, который мы потом будем
-  ломать миграцией. Правильнее было `InquiryThread(assetId, buyerId)` +
-  `InquiryMessage(threadId, authorRole, body, readAt)`.
-- **Деньги как `Decimal`, а не `Int`.** `Int` в копейках хватает до ~90 млн
-  единиц, но добавление валют с двумя знаками (JPY) или дробных ставок потребует
-  миграции типа. Для демо `Int` честнее, для прода — нет.
-- **`auth.ts` без самописной VASP-логики.** `trustHost: true` и повторный
-  запрос статуса пользователя на каждый запрос — правильно для демо, но в
-  проде это два лишних запроса к БД на страницу; кэш статуса в edge-совместимом
-  хранилище с TTL 60с дал бы тот же эффект при меньшей нагрузке.
-- **E2E на Playwright сразу.** CDP-прогон закрыл визуальные и a11y-проверки
-  дёшево, но его пришлось писать вручную (`CDP` + `fetch` + скрипты в `/tmp`).
-  Playwright дал бы те же проверки декларативно и с трассировкой, ценой одной
-  dev-зависимости.
+- **Arrays as join tables from day one.** The JSON string was a conscious
+  simplification for SQLite, but `BuyerProfile` is really many-to-many
+  (`jurisdictions`, `licenseTypes`), and on Postgres `text[]` is a poor
+  conversion target. Redesigning, I would start with
+  `BuyerJurisdiction(buyerId, code)` — an index, a normalised filter, and no
+  `LIKE` over JSON.
+- **Inquiries as threads from day one.** The “one message per direction” rule is
+  not a saving; it is a ban on conversation that we will later break with a
+  migration. `InquiryThread(assetId, buyerId)` +
+  `InquiryMessage(threadId, authorRole, body, readAt)` would be right.
+- **Money as `Decimal`, not `Int`.** `Int` in minor units holds out to ~90
+  million units, but adding two-decimal currencies (JPY) or fractional rates
+  needs a type migration. For the demo `Int` is honest; for production it is not.
+- **No hand-rolled VASP logic in `auth.ts`.** `trustHost: true` and re-reading
+  the user status on every request are right for a demo, but in production they
+  are two extra DB queries per page; an edge-compatible status cache with a 60s
+  TTL would give the same behaviour for less load.
+- **Playwright for E2E from the start.** The CDP pass covered visual and a11y
+  checks cheaply, but it had to be written by hand (`CDP` + `fetch` + scripts in
+  `/tmp`). Playwright would give the same checks declaratively with tracing, for
+  the price of one dev dependency.
+
+## Product improvements I would propose next
+
+Technical debt above; these are the product-level changes I would raise before
+writing more code — each one maps to a business outcome, not to tidiness.
+
+1. **Turn inquiries into threads with response SLAs.** One message per direction
+   blocks the actual M&A workflow: diligence is a back-and-forth. Threads plus
+   unread counters per thread, and a “seller response time” figure on listings,
+   directly feed deal velocity and give buyers a reason to prefer this platform
+   over email. (`InquiryThread` in the data model above.)
+2. **Replace exact-filter matching with a scored match.** Today “Matched for you”
+   is an equality filter on jurisdictions/licences/budget. A marketplace's core
+   value loop is matching: rank by budget overlap (distance between ranges),
+   jurisdiction adjacency (EU passporting is a proxy for jurisdiction value) and
+   licence compatibility, then expose the score. That also enables saved searches
+   and alerts — the retention mechanism the current product has none of.
+3. **Add verification and data enrichment to listings.** In this market the
+   listing is an unverifiable claim. Cross-checking the licence against public
+   registries (or an LLM-assisted enrichment pass over filings) and showing a
+   verification badge raises trust and conversion; it is also where the existing
+   AI pipeline (`smartSearch`'s validated-JSON pattern) extends naturally to
+   enrichment rather than search.
+4. **Give sellers a funnel, not a table.** Sellers currently see statuses;
+   buyers see inquiries. The business question is “how many listings turned into
+   contact requests?” — a simple conversion view per asset (impressions →
+   inquiries → thread active) is a day of work against data we already store.
+
+Out of scope for this assignment, and deliberately not started: payments,
+multipart file exchange, real KYC, and multi-tenant orgs.

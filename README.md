@@ -12,10 +12,10 @@ design and trade-off rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ```bash
 cp .env.example .env      # creates prisma/dev.db and enables Auth.js + AI fallback
-npx auth secret >> .env   # fills AUTH_SECRET (skip only for a throwaway local look)
+echo "AUTH_SECRET=\"$(openssl rand -base64 32)\"" >> .env   # JWT signing key
 npm i
 npx prisma migrate dev    # creates prisma/dev.db from the 3 migrations
-npm run db:seed           # 9 users, 20 assets, 10 inquiries, 3 audit entries
+npm run db:seed           # 9 users, 24 assets, 10 inquiries, 3 audit entries
 npm run dev               # http://localhost:3000
 ```
 
@@ -71,6 +71,30 @@ pagination have something to page through.
 | Cross   | 404 / error / global-error boundaries, skeletons, empty states                                | `not-found.tsx`, `error.tsx`    | `src/components/ui/*`                                                  |
 | Cross   | Token-based dark theme, AA contrast, keyboard-scrollable tables, mobile Sheet nav             | layout, `globals.css`           | `lib/badgeStyles.ts`, `SiteHeader`, `components/ui/sheet`              |
 
+## Requirements checklist (vs `docs/tasks/`)
+
+| Task | Requirement                                                                                                                                                                                                                          | Status | Where                                                                                                |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------------------------- |
+| 01   | Next.js 15 App Router, TS strict, Tailwind, shadcn set, `src/` layout                                                                                                                                                                | done   | `src/`, `components.json`, no new runtime deps beyond the spec                                       |
+| 02   | User / BuyerProfile / Asset / Inquiry models, enums, migrations, seed                                                                                                                                                                | done   | `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`                                       |
+| 03   | Auth.js v5 Credentials + bcrypt + JWT, `requireUser` / `requireRole`, login & register (no MANAGER self-signup), suspended rejected                                                                                                  | done   | `src/lib/auth/`, `src/server/auth.ts`, `/login`, `/register`                                         |
+| 04   | Public `/assets` + `/assets/[id]`, shareable URL-driven filters (licence, jurisdiction, price, `q`, sort, reset)                                                                                                                     | done   | `components/assets/FilterBar.tsx`, `lib/db/repositories/assets.ts`                                   |
+| 05   | Buyer dashboard (completeness, match strip, inquiry count), profile form, contact seller, `/buyer/inquiries`                                                                                                                         | done   | `src/app/buyer/`, `src/server/buyer.ts`                                                              |
+| 06   | Seller dashboard, own-assets table with publish/pause/soft-delete, draft vs publish form, buyer search + contact, inquiry inbox with unread + mark-as-read                                                                           | done   | `src/app/seller/`, `src/server/seller.ts`                                                            |
+| 07   | Manager dashboard, users table with filters and suspend/reactivate/soft-delete (MANAGER guarded), assets moderation, `AuditLog` on every mutation, paginated/filterable audit page                                                   | done   | `src/app/manager/`, `src/server/manager.ts`                                                          |
+| 08   | Smart-search bar, `/api/smart-search`, strict JSON prompt, **Zod-validated LLM output with keyword fallback**, explanation banner, 10 req/min rate limit, env vars, unit-tested `parseQuery`                                         | done   | `src/lib/ai/`, `app/api/smart-search/route.ts`                                                       |
+| 09   | Visual pass, skeletons, `error.tsx` / `not-found.tsx`, toast on every mutation, a11y (labels, aria, AA contrast measured), responsive (mobile menu; tables use horizontal scroll — documented), hover/transition polish, screenshots | done   | `src/components/`, `globals.css`, [ARCHITECTURE § UI polish](docs/ARCHITECTURE.md#ui-polish-task-09) |
+| 10   | Vitest setup, repository tests on a test DB, validation tests, ARCHITECTURE with all required sections, README, DEMO, deploy or documented blocker                                                                                   | done   | `test/`, `src/**/*.test.ts`, this README, `docs/DEMO.md`, `docs/SELF-REVIEW.md`                      |
+
+Working agreements from `00-CONTEXT.md`: every input goes through Zod, all DB
+access goes through `lib/db/*` repositories (components never import `prisma`),
+mutations are server actions with `/api/smart-search` as the single REST
+endpoint, and no dependency was added beyond the ones the tasks specified.
+
+The final self-review for the assignment — test run summary, deploy blocker and
+the against-the-spec checklist — is in
+[docs/SELF-REVIEW.md](docs/SELF-REVIEW.md).
+
 ## Scripts
 
 | Script                 | What it does                                   |
@@ -78,7 +102,7 @@ pagination have something to page through.
 | `npm run dev`          | Next dev server on :3000 (turbopack)           |
 | `npm run build`        | Production build                               |
 | `npm start`            | Serve the production build                     |
-| `npm test`             | Vitest, one run — 189 tests across 7 files     |
+| `npm test`             | Vitest, one run — 191 tests across 7 files     |
 | `npm run test:watch`   | Vitest in watch mode                           |
 | `npm run lint`         | ESLint                                         |
 | `npm run format:check` | Prettier check (use `npm run format` to write) |
@@ -91,13 +115,13 @@ so `npm test` never touches `prisma/dev.db`. See
 
 ## Environment variables
 
-| Variable          | Required         | Default                     | Notes                                                                          |
-| ----------------- | ---------------- | --------------------------- | ------------------------------------------------------------------------------ |
-| `DATABASE_URL`    | yes              | `file:./dev.db`             | SQLite file relative to `prisma/`. Swap to `postgresql://…` for prod.          |
-| `AUTH_SECRET`     | yes for real use | —                           | `npx auth secret`. Without it Auth.js errors on `/api/auth/*` in `next start`. |
-| `OPENAI_API_KEY`  | no               | empty                       | Without it smart search degrades to keyword search.                            |
-| `OPENAI_MODEL`    | no               | `gpt-4o-mini`               | Any OpenAI chat-completions model that supports `json_object`.                 |
-| `OPENAI_BASE_URL` | no               | `https://api.openai.com/v1` | Point at an OpenAI-compatible gateway or a local mock.                         |
+| Variable          | Required         | Default                     | Notes                                                                                                                                    |
+| ----------------- | ---------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`    | yes              | `file:./dev.db`             | SQLite file relative to `prisma/`. Swap to `postgresql://…` for prod.                                                                    |
+| `AUTH_SECRET`     | yes for real use | —                           | `echo "AUTH_SECRET=\"$(openssl rand -base64 32)\"" >> .env`. Without it Auth.js throws `MissingSecret` on `/api/auth/*` in `next start`. |
+| `OPENAI_API_KEY`  | no               | empty                       | Without it smart search degrades to keyword search.                                                                                      |
+| `OPENAI_MODEL`    | no               | `gpt-4o-mini`               | Any OpenAI chat-completions model that supports `json_object`.                                                                           |
+| `OPENAI_BASE_URL` | no               | `https://api.openai.com/v1` | Point at an OpenAI-compatible gateway or a local mock.                                                                                   |
 
 `.env` is git-ignored; only `.env.example` is committed.
 
@@ -107,26 +131,30 @@ so `npm test` never touches `prisma/dev.db`. See
 blocker and the exact steps below are documented rather than faked:
 
 1. **Postgres first.** Vercel's filesystem is ephemeral and cannot hold
-   `prisma/dev.db`. Create a Postgres database, set `DATABASE_URL` to it, and
-   swap `BuyerProfile.jurisdictions`/`licenseTypes` from JSON strings to
-   `String[]` (`text[]`) — see
-   [SQLite → Postgres: exact sequence](docs/ARCHITECTURE.md#sqlite--postgres-exact-sequence).
-2. **Generate a Prisma client for the serverless runtime:**
+   `prisma/dev.db`. Set the Prisma datasource to
+   `provider = "postgresql"` with `url = env("DATABASE_URL")` and
+   `directUrl = env("DIRECT_URL")`, and create the baseline migration:
 
    ```bash
-   npm i -D @prisma/adapter-neon   # or @prisma/adapter-planetscale / -pg
+   npx prisma migrate dev --name postgres-baseline
    ```
 
-   then set `binaryTargets = ["native", "rhel-openssl-3.0.x"]` in
-   `prisma/schema.prisma`.
+   Step-by-step, including the repository edits for `text[]` arrays, is in
+   [SQLite → Postgres: exact sequence](docs/ARCHITECTURE.md#sqlite--postgres-exact-sequence).
+   _I ran this against a live Neon project: swapping `provider` and the two
+   URLs produced a clean baseline migration with no model changes._
 
+2. **Serverless runtime.** Add `binaryTargets = ["native", "rhel-openssl-3.0.x"]`
+   to the `generator` block in `prisma/schema.prisma`, otherwise the query
+   engine fails on Vercel's Amazon Linux.
 3. **Build with migrations in one command.** Add to `package.json`:
 
    ```json
    "vercel-build": "prisma generate && prisma migrate deploy && next build"
    ```
 
-4. **Environment variables** — `DATABASE_URL`, `AUTH_SECRET`, and
+4. **Environment variables** — `DATABASE_URL` (pooled endpoint, for the runtime),
+   `DIRECT_URL` (direct endpoint, for `migrate deploy`), `AUTH_SECRET` and
    `OPENAI_API_KEY` in Vercel → Project → Settings → Environment Variables for
    _all_ environments. `AUTH_SECRET` must match the one used by the Credentials
    provider.
@@ -146,6 +174,24 @@ blocker and the exact steps below are documented rather than faked:
 7. **Post-deploy check:** open `/`, `/assets`, `/login`; sign in as
    `manager@n5deal.test` and confirm `/manager/users` loads — a missing
    `prisma migrate deploy` in the build step shows up as a Prisma error there.
+
+## Screenshots
+
+Captured from the running app (headless Chrome, 1280px and 375px):
+
+<p>
+  <img src="docs/screenshots/assets-1280.png" width="440" alt="Public catalogue with filters at 1280px">
+  &nbsp;
+  <img src="docs/screenshots/assets-375.png" width="180" alt="Public catalogue at 375px">
+</p>
+
+| Buyer 375px                                                        | Seller 375px                                                          | Manager: users 375px                                             |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| ![buyer dashboard](docs/screenshots/BUYER-buyer-dashboard-375.png) | ![seller dashboard](docs/screenshots/SELLER-seller-dashboard-375.png) | ![manager users](docs/screenshots/MANAGER-manager-users-375.png) |
+
+| Asset detail 375px                                     | Manager audit log                                            | Mobile drawer 375px                                    | Desktop session menu                                  |
+| ------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------- |
+| ![asset detail](docs/screenshots/asset-detail-375.png) | ![audit log](docs/screenshots/MANAGER-manager-audit-375.png) | ![mobile drawer](docs/screenshots/drawer-open-375.png) | ![user menu](docs/screenshots/dropdown-open-1280.png) |
 
 ## Project layout
 

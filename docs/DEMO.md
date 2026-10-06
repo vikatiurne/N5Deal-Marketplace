@@ -1,7 +1,7 @@
 # Demo script — 5 minutes, three roles
 
 Everything below runs against the seeded dataset
-(`npm run db:seed` → 9 users, 20 assets, 10 inquiries, 3 audit entries). Every
+(`npm run db:seed` → 9 users, 24 assets, 10 inquiries, 3 audit entries). Every
 account uses the password `password123`. Buttons are found by their visible
 label, so the script survives copy changes in the code.
 
@@ -23,8 +23,8 @@ inquries), two entry points — **Browse assets** and **Create account**.
 
 ## 1. Guest: catalogue and smart search (60 s)
 
-1. `/assets` — 11 `PUBLISHED` listings from active sellers (20 rows exist; drafts,
-   paused, removed and suspended-seller listings are filtered out). The
+1. `/assets` — 20 `PUBLISHED` listings from active sellers (24 rows exist: 1 draft,
+   1 paused and 2 listings of the suspended `seller3` are filtered out). The
    smart-search bar, interpretation banner and filter bar stack above the card
    grid, newest first.
 2. Tick **EMI** under _License type_, untick everything else, set
