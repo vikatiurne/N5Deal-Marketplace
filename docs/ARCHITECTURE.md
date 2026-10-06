@@ -1,8 +1,87 @@
 # Architecture — N5Deal Marketplace
 
+B2B marketplace for licensed financial products (EMI, PI, MiCA/CASP, VASP,
+banking licences). Buyer posts what it is looking for and what budget it has,
+seller posts a concrete asset, the two exchange inquiries **without ever seeing
+each other's contacts**, and a manager moderates both sides.
+
 Документ постепенно дополняется по мере выполнения задач (`docs/tasks/`).
 Правило: если решение принято и влияет на модель данных или структуру кода —
 оно здесь.
+
+---
+
+## Problem, roles, and boundaries
+
+**Problem.** The market for regulated-entity licences is reached through brokers
+and warm introductions. Buyers cannot see who is selling, sellers cannot see who
+is buying, and neither side can filter by jurisdiction/licence/price. The
+product replaces the "who do you know" channel with a searchable catalogue plus
+a blind two-sided inquiry flow.
+
+**Roles and what each one may touch.**
+
+| Role    | Reads                                   | Writes                                                                | Cannot                                                                |
+| ------- | --------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Guest   | `/`, `/assets`, asset card, seller name | —                                                                     | contact form, dashboards, smart-search rate limit keyed by IP only    |
+| Buyer   | catalogue, buyer cards, own inquiries   | buyer profile, inquiries `initiatorRole = BUYER`                      | seller contact data (only `displayName` + `company`), asset editing   |
+| Seller  | own assets + their inquiries, buyers    | assets (`DRAFT/PUBLISHED/PAUSED`), inquiries `initiatorRole = SELLER` | other sellers' assets, own asset deletion, moderation, buyer profiles |
+| Manager | everything, incl. audit log             | user status, asset status, audit entries                              | own account moderation, `DRAFT` (not a moderation state)              |
+
+Two invariants shape the whole codebase:
+
+1. **Contacts are never exchanged.** A seller sees buyers as `UserSummary`
+   (`displayName`, `company`, budget) — no email, no phone. Same in reverse.
+2. **The public catalogue only ever contains `PUBLISHED` assets owned by
+   `ACTIVE` users.** Enforced in the repository (`listAssets`), not in the UI.
+
+## Stack
+
+| Concern    | Choice                               | Why                                                                                                                                            |
+| ---------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js 15 App Router, RSC           | server-first by default; mutations are server actions so the client never holds write logic; `revalidatePath` is one line                      |
+| Language   | TypeScript `strict`                  | `exactOptionalPropertyTypes`/`noUncheckedIndexedAccess` catch the two bug classes this app is prone to (filters, nullable rows)                |
+| Data       | Prisma + SQLite                      | relational domain (assets↔inquiries↔users) with zero infrastructure for a demo that must `npm i && npm run dev`; Postgres is a datasource swap |
+| Auth       | Auth.js v5 Credentials, JWT session  | no email provider, no OAuth app registration; JWT keeps server actions cheap, DB status re-checked on every request for instant suspension     |
+| Styling    | Tailwind v4 + `radix-ui` + shadcn    | tokens in CSS, primitives copied into `components/ui`, no second UI kit; `radix-ui` unified package already provides Dialog/Sheet/Table        |
+| Validation | Zod                                  | every input (query string, form, AI output, server action) parsed at the boundary before any write                                             |
+| AI         | OpenAI Chat Completions over `fetch` | `response_format: json_object` + injected `LlmClient` interface; see [AI smart search](#ai-smart-search-task-08)                               |
+| Tests      | Vitest + real SQLite fixture DB      | filters/query-builder logic is only trustworthy when run against the real engine; Zod schemas need no DOM                                      |
+| Money      | integer `price`, 3-letter `currency` | no float rounding; EUR/USD/GBP only, so no FX column in the demo                                                                               |
+
+## Data model
+
+```
+User ──────────────┬──< Asset >──────────────┬─── Inquiry >────┐
+│ id               │   id                   │    id           │
+│ role/status      │   sellerId             │    assetId ─────┘
+│ displayName      │   title/description    │    buyerId ──┐
+│ passwordHash ────┼──< BuyerProfile         │    initiatorRole
+│ (never exposed)  │   (1:1, buyer only)    │    message   │
+│                  │                        │    readAt    │
+│ AuditLog         │                        └──────────────┘
+│ actorId, action, targetType, targetId, meta
+└──< AuditLog      │
+```
+
+Relations, all with `onDelete: Cascade` from the owning side:
+
+- `User 1—N Asset` — seller owns listings. Deleting a user row would cascade,
+  which is why moderation never deletes: it flips `status` (see
+  [Moderation](#moderation-task-07)).
+- `User 1—1 BuyerProfile` — only for `role = BUYER`; carries
+  `jurisdictions`/`licenseTypes`/budget/description used for seller↔buyer
+  matching.
+- `Asset 1—N Inquiry`, `User 1—N Inquiry` — an inquiry is
+  `(assetId, buyerId, initiatorRole)` unique: one message per direction per pair.
+- `User 1—N AuditLog` — `actorId`; `targetType/targetId` is polymorphic
+  (`USER | ASSET`), which SQLite cannot express as a real FK, so referential
+  integrity for the target is enforced in `lib/auth/permissions.ts` and the
+  repository.
+
+Enums are deliberately closed (`Role`, `AssetStatus`, `LicenseType`, `Role`-
+adjacent `AuditAction`, `AuditTargetType`): a typo in a UI button must fail
+validation, not create a new category.
 
 ---
 
@@ -305,11 +384,111 @@ badge роли — раньше единственным признаком вх
 
 ### 14. Что проверено и как
 
-`npm test` (17), `tsc --noEmit`, `eslint`, `prettier --check`, `next build`
-— без ошибок и предупреждений. Плюс headless-Chrome прогон через CDP
-(без новых зависимостей) по 19 маршрутам в 375px и 1280px: 0 ошибок и 0
-предупреждений в консоли, 0 горизонтальных переполнений страницы.
-Отдельный прогон входа-в-роль для трёх ролей. Известное ограничение
-Next.js: `notFound()` отдаёт 200 с `<meta name="robots" content="noindex">`
-(корневой layout стримит шапку, поэтому статус не успевает зафиксироваться) —
-сам 404-экран при этом полноценный.
+`npm test`, `tsc --noEmit`, `eslint`, `prettier --check`, `next build` — без
+ошибок и предупреждений. Плюс headless-Chrome прогон через CDP (без новых
+зависимостей) по 17 маршрутам в 375px и 1280px: 0 ошибок и 0 предупреждений в
+консоли, 0 горизонтальных переполнений страницы. Отдельный прогон
+входа-в-роль для трёх ролей. Известное ограничение Next.js: `notFound()`
+отдаёт 200 с `<meta name="robots" content="noindex">` (корневой layout
+стримит шапку, поэтому статус не успевает зафиксироваться) — сам 404-экран при
+этом полноценный.
+
+---
+
+## Testing (Task 10)
+
+```
+test/globalSetup.ts          prisma db push --skip-generate --force-reset  (DATABASE_URL=file:./test.db)
+        ↓
+src/lib/db/repositories/assets.test.ts   45 tests — real SQLite, real Prisma
+src/lib/validation/*.test.ts            127 tests — pure Zod
+src/lib/ai/smartSearch.test.ts           17 tests — injected LlmClient
+```
+
+Три правила, которые определили структуру:
+
+- **Тесты фильтров идут против настоящей БД, а не мока репозитория.** Мок
+  повторяет ровно ту логику, которую мы хотим проверить, и всегда «зелёный»:
+  опечатку в `where`/`orderBy` он не поймает. `assets.test.ts` создаёт 7
+  активов, 2 продавцов и 2 покупателей, прогоняет каждый фильтр и комбинации,
+  проверяет пагинацию вместе с `total`, сортировку, ownership (`findOwnedAsset`
+  на чужом активе → `null`), счётчики инбокса продавца и входящие/исходящие
+  inquiry. Тестовая БД — отдельный файл `prisma/test.db`, пересоздаётся перед
+  прогоном; `fileParallelism: false`, потому что файлы делят одну схему.
+- **AI не тестируется сетью.** `createLlmClient()` — единственная точка выхода,
+  подменяется `LlmClient` в 17 тестах `parseQuery`, включая code fences, мусор,
+  лишние ключи и таймаут.
+- **Zod-тесты — это тесты контракта URL и форм**, а не покрытие строк: query string
+  приходит с повторяющимися параметрами, CSV-списками, пустыми строками от
+  сброшенных фильтров и мусором от ручного ввода. Каждый такой случай
+  зафиксирован явно, включая `priceMin > priceMax` (ошибка указывает на поле
+  `priceMin`) и запрет `MANAGER` при саморегистрации.
+
+Тесты поймали два реальных бага, а не только подтвердили реализацию:
+
+1. `markReadSchema`/`Inquiry` uniqueness — два сообщения от одного покупателя
+   по одному активу падали на `P2002`; тест теперь требует двух покупателей и
+   тем самым фиксирует ограничение «одно сообщение в направление».
+2. `assetFiltersSchema` принимал `?jurisdiction=12`: проверка `length(2)` считала
+   две цифры кодом страны. Заменено на `/^[A-Z]{2}$/` — и это **намеренно**
+   оставляет возможность добавить новую страну без деплоя, в отличие от
+   закрытого enum на пишущем пути (`JURISDICTIONS`).
+
+## Known limitations
+
+| #   | Ограничение                                                                  | Почему так                                        | Что делать при росте                                                                         |
+| --- | ---------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 1   | SQLite: один файл, нет конкурентных записей в проде, `LIKE` по JSON-массивам | Демо должно запускаться без инфраструктуры        | Перенос в Postgres: `text[]` + GIN/trgm, один скрипт миграции (ниже)                         |
+| 2   | `%` и `_` в поиске работают как LIKE-метасимволы                             | SQLite не экранирует их внутри bind-параметра     | Для публичного поиска — raw-запрос с `ESCAPE '\'`; сейчас зафиксировано тестом как поведение |
+| 3   | Rate limit AI — in-memory Map                                                | Нет Redis в демо; сбрасывается на рестарте/деплое | Upstash/Redis, ключ по userId                                                                |
+| 4   | Один инвайт на пару `(asset, buyer)` в каждом направлении, без тредов        | Полноценная переписка — отдельная модель          | `InquiryThread` + `InquiryMessage`, миграция по `initiatorRole`                              |
+| 5   | `notFound()` отдаёт HTTP 200 + `noindex` (streaming root layout)             | Поведение Next.js, не наш код                     | Вынесить 404-страницы в route group без стримащего layout                                    |
+| 6   | Фильтрация по JSON-массивам идёт `LIKE` — медленно и не индексируется        | Для 20 демо-активов индекса не нужно              | Postgres `text[]` + GIN, либо join-таблицы                                                   |
+| 7   | Нет e-mail подтверждения и восстановления пароля                             | Credentials provider без почты                    | Resend/Postmark + verify-token в `User`                                                      |
+| 8   | Upload файлов (лицензии, аудит) отсутствует                                  | Файлы — вне scope демо                            | S3-compatible storage + подписанные URL                                                      |
+
+## SQLite → Postgres: точная последовательность
+
+Замена datasource в этом проекте — одна миграция схемы плюс две правки в
+репозиториях, потому что доменный слой не знает про SQLite:
+
+1. Создать базу (managed Postgres) и заменить `DATABASE_URL` на
+   `postgresql://…?sslmode=require`. Больше ничего в коде править не нужно:
+   Prisma-клиент абстрагирует драйвер.
+2. `npx prisma migrate dev --name postgres-baseline` — миграция создаст
+   таблицы заново. Данные из SQLite переносятся вручную (dump + `INSERT`), в
+   демо их нет.
+3. `BuyerProfile.jurisdictions` / `licenseTypes`: `String` → `String[]`
+   (`text[]`). Доменный тип не меняется, но `parseJsonArray`/`JSON.stringify`
+   в `repositories/users.ts` становятся лишними — удалить вместе с тестами на
+   них.
+4. Фильтры по массивам: `contains` → `array_contains` (Prisma) или GIN-индекс.
+   До этого LIKE работать не будет.
+5. `AuditLog` получил бы настоящий FK на полиморфную цель — либо две таблицы,
+   либо nullable `targetUserId`/`targetAssetId` с `CHECK`.
+6. Проверить `prisma/test.db` → на CI оставить `file:` (быстро) или
+   поднять `postgres` сервис для честного покрытия `array_contains`.
+
+## Что бы я сделал иначе
+
+- **Массивы как join-таблицы с первого дня.** JSON-строка была сознательным
+  упрощением ради SQLite, но `BuyerProfile` — это по сути many-to-many
+  (`jurisdictions`, `licenseTypes`), и на Postgres `text[]` лучше не превращать
+  обратно. Если бы модель проектировалась заново, я бы сразу сделал
+  `BuyerJurisdiction(buyerId, code)` — это же и индекс, и нормализованный
+  фильтр, и никакого `LIKE` по JSON.
+- **Inquiries как тред с первого дня.** Ограничение «одно сообщение в
+  направление» — это не экономия, а запрет переписки, который мы потом будем
+  ломать миграцией. Правильнее было `InquiryThread(assetId, buyerId)` +
+  `InquiryMessage(threadId, authorRole, body, readAt)`.
+- **Деньги как `Decimal`, а не `Int`.** `Int` в копейках хватает до ~90 млн
+  единиц, но добавление валют с двумя знаками (JPY) или дробных ставок потребует
+  миграции типа. Для демо `Int` честнее, для прода — нет.
+- **`auth.ts` без самописной VASP-логики.** `trustHost: true` и повторный
+  запрос статуса пользователя на каждый запрос — правильно для демо, но в
+  проде это два лишних запроса к БД на страницу; кэш статуса в edge-совместимом
+  хранилище с TTL 60с дал бы тот же эффект при меньшей нагрузке.
+- **E2E на Playwright сразу.** CDP-прогон закрыл визуальные и a11y-проверки
+  дёшево, но его пришлось писать вручную (`CDP` + `fetch` + скрипты в `/tmp`).
+  Playwright дал бы те же проверки декларативно и с трассировкой, ценой одной
+  dev-зависимости.
