@@ -8,8 +8,14 @@ each other's contacts**, and a manager moderates both sides.
 Demo accounts and the 5-minute script live in [`docs/DEMO.md`](docs/DEMO.md);
 design and trade-off rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-**Live: https://minimarketplace-six.vercel.app** (Vercel + Neon Postgres,
-same seed as local).
+**Test-assignment deliverables:**
+
+| Item             | Where                                                                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------------- |
+| Source code      | https://github.com/vikatiurne/N5Deal-Marketplace (branch `dev`)                                          |
+| Run instructions | [Quick start](#quick-start) below + [docs/DEMO.md](docs/DEMO.md) (5-minute scripted walkthrough)         |
+| Deployed version | **https://minimarketplace-six.vercel.app** (Vercel + Neon Postgres, same seed as local)                  |
+| Design rationale | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · self-review in [docs/SELF-REVIEW.md](docs/SELF-REVIEW.md) |
 
 The interface is bilingual: **English (default, unprefixed URLs) and Ukrainian
 (`/uk/…`)** — switch with the EN/UA control in the header or open any route
@@ -39,6 +45,91 @@ natural-language filtering ("cheap emi in lithuania under 300k").
 
 Requirements: Node 20.9+ (or 22), npm 10+. No database server, no Docker, no
 external services.
+
+## Key technical decisions
+
+- **Server actions over REST.** Every mutation is a typed server action;
+  `/api/smart-search` is the single REST endpoint — one Zod-validated path and
+  no client-side API layer to keep in sync.
+- **Repository layer over raw Prisma.** Components never import `prisma`;
+  all queries go through `lib/db/*`, which is exactly what the tests run
+  against a real SQLite database.
+- **Auth.js v5 (credentials + JWT), but the DB is re-read on every guarded
+  request.** Suspending an account takes effect immediately instead of when
+  the token expires; `requireRole` is the single gate for all three zones.
+- **No new runtime dependencies.** i18n is a hand-rolled layer (middleware
+  `/uk` rewrite + compile-checked dictionaries), the theme, badges and
+  scrollable tables are Tailwind over the existing shadcn set.
+- **LLM output is untrusted input:** strict JSON prompt → Zod validation →
+  keyword search fallback, behind a 10 req/min limit.
+- **SQLite locally, Postgres in production** via a build-time `provider` swap
+  inside `vercel.json` — zero-infra dev, no fork in the repository.
+- **Blind contact model:** inquiries carry messages and display names only,
+  never e-mails or phones — the product rule is enforced by the data model.
+
+## Assumptions
+
+- No mail infrastructure was in scope, so e-mail verification and password
+  reset are out; demo credentials are documented in this README.
+- English is the default locale with no URL prefix; Ukrainian lives under
+  `/uk/…` (the locale code is `uk`, not `ua`; the prefix is one constant).
+- One inquiry per `(asset, buyer, direction)` — a unique constraint chosen for
+  the demo, documented as a limitation together with the thread model that
+  would replace it.
+- Prices are integer EUR amounts; the seed dataset (users, listings, inquiry
+  text) is demo fixture data.
+- Managers cannot self-sign up and cannot be moderated by anyone, including
+  themselves.
+- The **interface** is translated; seeded **data** (listing titles, names,
+  e-mails, jurisdiction codes) intentionally is not.
+
+## AI tools used
+
+AI was used as an implementation accelerator, not as the decision-maker: scope,
+priorities, trade-offs and what actually ships were decided and reviewed by me.
+
+- **Development:** an AI coding assistant ([opencode](https://opencode.ai),
+  model `big-pickle`) drafted features, tests and documentation; every change
+  was reviewed by me and accepted only after `tsc --noEmit`, ESLint
+  (0 warnings), Prettier, the 191-test Vitest suite and a production build
+  passed, plus a manual pass against the running app (role logins, both
+  locales, live URL). Commits and pushes happened only on my explicit command;
+  review notes and task-by-task output live in [`docs/tasks/`](docs/tasks/)
+  and [`docs/SELF-REVIEW.md`](docs/SELF-REVIEW.md).
+- **In the product itself:** OpenAI chat completions (default `gpt-4o-mini`)
+  power smart search — a feature I chose to keep optional (keyword fallback
+  without `OPENAI_API_KEY`) and behind Zod validation, because a model
+  response must never reach a query unvalidated.
+
+## If I had more time
+
+My product priorities for the next iteration — picked for user value, ordered
+by what I would do first. The first two are production table-stakes, the
+latter two are UX polish:
+
+1. **Realtime updates (sockets) for the inbox.** Unread counters and new
+   inquiries should appear without a refresh, and presence/typing would follow
+   naturally. One caveat I would weigh first: on Vercel serverless a
+   persistent WebSocket needs a hosted relay (Ably/Pusher) or SSE — for a
+   demo, lightweight polling via `router.refresh()` is the honest cheap
+   option, so this is an infrastructure decision, not just a code change.
+2. **Extended authorization: password reset + e-mail verification.** These are
+   table-stakes for any real deployment (already known limitation #7); they
+   need a mail provider (e.g. Resend) and signed, expiring tokens — small,
+   self-contained work on top of the existing Auth.js setup.
+3. **Theme switcher (dark/light).** The dark-only theme was my deliberate
+   task-09 decision, but every color is a token, so adding a light variant
+   plus a `class` toggle persisted in a cookie/localStorage is a small, safe
+   change.
+4. **Animations — but restrained.** Micro-transitions (card hover, list
+   entrance) raise polish; they must respect `prefers-reduced-motion` and
+   stay out of the way of keyboard and assistive-technology users — delight,
+   not delay.
+
+Below that, as technical debt rather than product work: an E2E Playwright
+suite, inquiry threads instead of the one-message rule, and scored
+buyer↔listing matching — expanded in
+[ARCHITECTURE § Product improvements](docs/ARCHITECTURE.md#product-improvements-i-would-propose-next).
 
 ## Demo accounts
 
