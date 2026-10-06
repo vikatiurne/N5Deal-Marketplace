@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -16,6 +15,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
+import { localizePath } from "@/i18n/config";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import { listAssetsBySeller } from "@/lib/db/repositories/assets";
 import { findBuyerProfile } from "@/lib/db/repositories/buyers";
@@ -27,9 +28,10 @@ import { findUserById } from "@/lib/db/repositories/users";
 import { formatBudgetRange } from "@/lib/formatPrice";
 import { formatDate } from "@/lib/formatDate";
 
-export const metadata: Metadata = {
-  title: "Buyer profile",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("seller.buyer.title") };
+}
 
 export default async function SellerBuyerDetailPage({
   params,
@@ -38,6 +40,8 @@ export default async function SellerBuyerDetailPage({
 }) {
   const seller = await requireRole("SELLER");
   const { id } = await params;
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
 
   const buyer = await findUserById(id);
   if (!buyer || buyer.role !== "BUYER" || buyer.status !== "ACTIVE") {
@@ -61,10 +65,10 @@ export default async function SellerBuyerDetailPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <Link
-          href="/seller/buyers"
+          href={href("/seller/buyers")}
           className="text-sm text-muted-foreground hover:text-foreground hover:underline hover:underline-offset-4"
         >
-          ← Back to buyers
+          {t("seller.buyer.back")}
         </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
@@ -73,7 +77,9 @@ export default async function SellerBuyerDetailPage({
             </h1>
             <p className="text-sm text-muted-foreground">
               {buyer.company ? `${buyer.displayName} · ` : ""}
-              Member since {formatDate(buyer.createdAt)}
+              {t("seller.buyer.memberSince", {
+                date: formatDate(buyer.createdAt, locale),
+              })}
             </p>
           </div>
           <ContactBuyerButton
@@ -88,21 +94,23 @@ export default async function SellerBuyerDetailPage({
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="bg-surface">
           <CardHeader>
-            <CardTitle className="text-base">Interests</CardTitle>
+            <CardTitle className="text-base">
+              {t("seller.buyer.interests")}
+            </CardTitle>
             <CardDescription>
-              What this buyer is looking to acquire.
+              {t("seller.buyer.interestsDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {!profile ? (
               <p className="text-sm text-muted-foreground">
-                This buyer has not filled in a public profile yet.
+                {t("seller.buyer.noProfile")}
               </p>
             ) : (
               <>
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-medium text-muted-foreground">
-                    Jurisdictions
+                    {t("seller.buyer.jurisdictions")}
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.jurisdictions.map((code) => (
@@ -118,7 +126,7 @@ export default async function SellerBuyerDetailPage({
                 </div>
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-medium text-muted-foreground">
-                    License types
+                    {t("seller.buyer.licenseTypes")}
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {profile.licenseTypes.map((license) => (
@@ -128,16 +136,20 @@ export default async function SellerBuyerDetailPage({
                 </div>
                 <div className="flex flex-col gap-2">
                   <span className="text-xs font-medium text-muted-foreground">
-                    Budget
+                    {t("seller.buyer.budget")}
                   </span>
                   <span className="text-sm">
-                    {formatBudgetRange(profile.budgetMin, profile.budgetMax)}
+                    {formatBudgetRange(
+                      profile.budgetMin,
+                      profile.budgetMax,
+                      locale,
+                    )}
                   </span>
                 </div>
                 {profile.description && (
                   <div className="flex flex-col gap-2">
                     <span className="text-xs font-medium text-muted-foreground">
-                      Brief
+                      {t("seller.buyer.brief")}
                     </span>
                     <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
                       {profile.description}
@@ -153,12 +165,12 @@ export default async function SellerBuyerDetailPage({
           <Card className="bg-surface">
             <CardHeader>
               <CardTitle className="text-base">
-                Inquiries about your assets
+                {t("seller.buyer.askedTitle")}
               </CardTitle>
               <CardDescription>
                 {askedAbout.length === 0
-                  ? "This buyer has not inquired about your listings."
-                  : `${askedAbout.length} ${askedAbout.length === 1 ? "inquiry" : "inquiries"}`}
+                  ? t("seller.buyer.askedNone")
+                  : t("seller.buyer.askedCount", { count: askedAbout.length })}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
@@ -169,7 +181,7 @@ export default async function SellerBuyerDetailPage({
                 >
                   <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
                     <Link
-                      href={`/assets/${inquiry.asset.id}`}
+                      href={href(`/assets/${inquiry.asset.id}`)}
                       className="hover:text-primary hover:underline hover:underline-offset-4"
                     >
                       {inquiry.asset.title}
@@ -177,7 +189,7 @@ export default async function SellerBuyerDetailPage({
                     <AssetStatusBadge status={inquiry.asset.status} />
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {formatDate(inquiry.createdAt)}
+                    {formatDate(inquiry.createdAt, locale)}
                   </span>
                   <p className="line-clamp-2 text-sm text-muted-foreground">
                     {inquiry.message}
@@ -190,16 +202,16 @@ export default async function SellerBuyerDetailPage({
           <Card className="bg-surface">
             <CardHeader>
               <CardTitle className="text-base">
-                Your messages to this buyer
+                {t("seller.buyer.sentTitle")}
               </CardTitle>
               <CardDescription>
-                Seller → buyer inquiries you already sent.
+                {t("seller.buyer.sentDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
               {sentMessages.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Nothing sent yet.
+                  {t("seller.buyer.sentEmpty")}
                 </p>
               ) : (
                 sentMessages.map((message) => {
@@ -213,11 +225,11 @@ export default async function SellerBuyerDetailPage({
                         variant="outline"
                         className="border-primary/40 text-primary"
                       >
-                        Sent
+                        {t("seller.buyer.sentBadge")}
                       </Badge>
                       <span className="text-muted-foreground">
-                        {asset?.title ?? "Removed listing"} ·{" "}
-                        {formatDate(message.createdAt)}
+                        {asset?.title ?? t("seller.buyer.removedListing")} ·{" "}
+                        {formatDate(message.createdAt, locale)}
                       </span>
                     </div>
                   );

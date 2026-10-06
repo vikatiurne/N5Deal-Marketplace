@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 import { useToast } from "@/hooks/use-toast";
 import { markInquiriesAsRead } from "@/server/seller";
 
@@ -17,6 +18,7 @@ export function MarkReadButton({
 }) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
   const [isPending, startTransition] = useTransition();
 
   function markRead() {
@@ -24,19 +26,18 @@ export function MarkReadButton({
       const result = await markInquiriesAsRead({ inquiryIds });
       if (!result.ok) {
         toast({
-          title: "Could not update",
-          description: result.error ?? "Try again.",
+          title: t("seller.markRead.error.title"),
+          description: result.error ?? t("common.retry"),
           variant: "destructive",
         });
         return;
       }
       router.refresh();
       toast({
-        title: "Marked as read",
-        description:
-          inquiryIds.length === 1
-            ? "1 inquiry moved out of your unread count."
-            : `${inquiryIds.length} inquiries moved out of your unread count.`,
+        title: t("seller.markRead.success.title"),
+        description: t("seller.markRead.success.description", {
+          count: inquiryIds.length,
+        }),
       });
     });
   }
@@ -56,11 +57,13 @@ export function MarkReadButton({
         /* The visible label is gone in the icon variant, so the count has to
            be announced here instead — it used to be in *both* variants, which
            made the button read "Mark as read Mark 3 inquiries as read". */
-        <span className="sr-only">Mark {inquiryIds.length} as read</span>
+        <span className="sr-only">
+          {t("seller.markRead.button", { count: inquiryIds.length })}
+        </span>
       ) : isPending ? (
-        "Marking…"
+        t("seller.markRead.pending")
       ) : (
-        `Mark ${inquiryIds.length} as read`
+        t("seller.markRead.button", { count: inquiryIds.length })
       )}
     </Button>
   );

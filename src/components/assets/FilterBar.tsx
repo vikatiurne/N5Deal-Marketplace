@@ -15,16 +15,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useT, useLocaleHref } from "@/i18n/client";
+import { LICENSE_KEYS, type MessageKey } from "@/i18n/core";
 import { LicenseType } from "@/types";
 
 const LICENSE_OPTIONS = Object.values(LicenseType);
 const JURISDICTION_OPTIONS = ["LT", "CY", "MT", "EE", "PL"];
 
-const SORT_OPTIONS = [
-  { value: "newest", label: "Newest" },
-  { value: "price_asc", label: "Price: low to high" },
-  { value: "price_desc", label: "Price: high to low" },
-] as const;
+const SORT_OPTIONS: ReadonlyArray<{ value: string; labelKey: MessageKey }> = [
+  { value: "newest", labelKey: "filters.sort.newest" },
+  { value: "price_asc", labelKey: "filters.sort.price_asc" },
+  { value: "price_desc", labelKey: "filters.sort.price_desc" },
+];
 
 function selectedValues(params: URLSearchParams, key: string): string[] {
   const direct = params.getAll(key);
@@ -39,6 +41,8 @@ export function FilterBar() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const t = useT();
+  const localizedHref = useLocaleHref();
   const queryKey = params.toString();
 
   const selectedLicense = selectedValues(params, "licenseType");
@@ -96,17 +100,17 @@ export function FilterBar() {
           className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto]"
         >
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="filter-q">Search</Label>
+            <Label htmlFor="filter-q">{t("filters.search")}</Label>
             <Input
               id="filter-q"
               name="q"
               type="search"
-              placeholder="Title or description…"
+              placeholder={t("filters.qPlaceholder")}
               defaultValue={params.get("q") ?? ""}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="filter-priceMin">Min price (EUR)</Label>
+            <Label htmlFor="filter-priceMin">{t("filters.minPrice")}</Label>
             <Input
               id="filter-priceMin"
               name="priceMin"
@@ -120,7 +124,7 @@ export function FilterBar() {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="filter-priceMax">Max price (EUR)</Label>
+            <Label htmlFor="filter-priceMax">{t("filters.maxPrice")}</Label>
             <Input
               id="filter-priceMax"
               name="priceMax"
@@ -134,10 +138,12 @@ export function FilterBar() {
             />
           </div>
           <div className="flex items-end gap-2">
-            <Button type="submit">Apply</Button>
+            <Button type="submit">{t("filters.apply")}</Button>
             {hasActiveFilters && (
               <Button type="button" variant="outline" asChild>
-                <Link href="/assets">Reset</Link>
+                <Link href={localizedHref("/assets")}>
+                  {t("filters.reset")}
+                </Link>
               </Button>
             )}
           </div>
@@ -145,7 +151,9 @@ export function FilterBar() {
 
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">License type</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t("filters.licenseType")}
+            </legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {LICENSE_OPTIONS.map((option) => (
                 <label
@@ -156,14 +164,16 @@ export function FilterBar() {
                     checked={selectedLicense.includes(option)}
                     onCheckedChange={() => toggle(option, "licenseType")}
                   />
-                  {option}
+                  {t(LICENSE_KEYS[option])}
                 </label>
               ))}
             </div>
           </fieldset>
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">Jurisdiction</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t("filters.jurisdiction")}
+            </legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {JURISDICTION_OPTIONS.map((option) => (
                 <label
@@ -181,7 +191,7 @@ export function FilterBar() {
           </fieldset>
 
           <div className="flex flex-col gap-1.5 md:ml-auto">
-            <Label id="filter-sort-label">Sort by</Label>
+            <Label id="filter-sort-label">{t("filters.sortBy")}</Label>
             <Select value={sort} onValueChange={changeSort}>
               <SelectTrigger
                 aria-labelledby="filter-sort-label"
@@ -192,7 +202,7 @@ export function FilterBar() {
               <SelectContent>
                 {SORT_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                    {t(option.labelKey)}
                   </SelectItem>
                 ))}
               </SelectContent>

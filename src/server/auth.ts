@@ -3,6 +3,8 @@
 import bcrypt from "bcryptjs";
 
 import { signIn, signOut } from "@/lib/auth/auth";
+import { localizePath } from "@/i18n/config";
+import { getLocale, localizeError } from "@/i18n/server";
 import { ROLE_HOME } from "@/lib/auth/types";
 import { requireUser } from "@/lib/auth/guards";
 import { createUser, findUserByEmail } from "@/lib/db/repositories/users";
@@ -16,6 +18,7 @@ function isPrismaUniqueError(e: unknown): boolean {
 
 export interface ActionResult {
   ok: boolean;
+  /** Error code (rendered via i18n by the caller) or a validation message. */
   error?: string;
   /** Where to go on success — role home or /login with ?next= */
   redirectTo?: string;
@@ -26,11 +29,14 @@ export interface ActionResult {
  * then signs in via the Credentials provider.
  */
 export async function registerAction(input: unknown): Promise<ActionResult> {
+  const locale = await getLocale();
   const parsed = registerSchema.safeParse(input);
   if (!parsed.success) {
     return {
       ok: false,
-      error: parsed.error.issues[0]?.message ?? "Invalid input",
+      error: await localizeError(
+        parsed.error.issues[0]?.message ?? "Invalid input",
+      ),
     };
   }
 
@@ -38,7 +44,7 @@ export async function registerAction(input: unknown): Promise<ActionResult> {
 
   const existing = await findUserByEmail(email);
   if (existing) {
-    return { ok: false, error: "Email already registered" };
+    return { ok: false, error: "email_taken" };
   }
 
   try {
@@ -46,7 +52,7 @@ export async function registerAction(input: unknown): Promise<ActionResult> {
     await createUser({ email, passwordHash, role, displayName });
   } catch (e) {
     if (isPrismaUniqueError(e)) {
-      return { ok: false, error: "Email already registered" };
+      return { ok: false, error: "email_taken" };
     }
     throw e;
   }
@@ -55,14 +61,18 @@ export async function registerAction(input: unknown): Promise<ActionResult> {
   // an error URL (contains ?error=) means login failed — account is created.
   const url = await signIn("credentials", { email, password, redirect: false });
   if (typeof url === "string" && url.includes("error=")) {
-    return { ok: true, redirectTo: "/login?registered=1" };
+    return {
+      ok: true,
+      redirectTo: localizePath(locale, "/login?registered=1"),
+    };
   }
 
-  return { ok: true, redirectTo: ROLE_HOME[role] };
+  return { ok: true, redirectTo: localizePath(locale, ROLE_HOME[role]) };
 }
 
 /** Logout via server action (task requirement). */
 export async function logoutAction(): Promise<void> {
   await requireUser();
-  await signOut({ redirectTo: "/" });
+  const locale = await getLocale();
+  await signOut({ redirectTo: localizePath(locale, "/") });
 }

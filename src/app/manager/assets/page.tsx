@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
 
@@ -19,15 +18,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { localizePath } from "@/i18n/config";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import { listAssetsForManager } from "@/lib/db/repositories/assets";
 import { formatDate } from "@/lib/formatDate";
 import { formatPrice } from "@/lib/formatPrice";
 import { managerAssetFiltersSchema } from "@/lib/validation/manager";
 
-export const metadata: Metadata = {
-  title: "Listings · Manager",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("manager.assets.meta.title") };
+}
 
 const PAGE_SIZE = 20;
 
@@ -37,6 +39,7 @@ export default async function ManagerAssetsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireRole("MANAGER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
 
   const params = await searchParams;
   const parsed = managerAssetFiltersSchema.safeParse(params);
@@ -52,10 +55,11 @@ export default async function ManagerAssetsPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Listings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("manager.assets.title")}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          {total} {total === 1 ? "asset" : "assets"} across all sellers ·
-          removing a listing hides it from the marketplace without deleting it.
+          {t("manager.assets.subtitle", { count: total })}
         </p>
       </div>
 
@@ -64,28 +68,34 @@ export default async function ManagerAssetsPage({
       {items.length === 0 ? (
         <EmptyState
           icon={BriefcaseBusiness}
-          title="No listings match these filters"
-          description="Clear the search text or widen the license, jurisdiction and status filters."
-          actionHref="/manager/assets"
-          actionLabel="Reset filters"
+          title={t("manager.assets.emptyTitle")}
+          description={t("manager.assets.emptyDescription")}
+          actionHref={localizePath(locale, "/manager/assets")}
+          actionLabel={t("manager.filters.resetAll")}
         />
       ) : (
         <Card className="bg-surface">
           <CardContent className="pt-6">
             <Table>
               <TableCaption className="text-xs">
-                Every listing, including drafts and unpublished assets.
+                {t("manager.assets.caption")}
               </TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Seller</TableHead>
-                  <TableHead>License</TableHead>
-                  <TableHead>Jurisdiction</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Listed</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("manager.assets.titleColumn")}</TableHead>
+                  <TableHead>{t("manager.assets.seller")}</TableHead>
+                  <TableHead>{t("manager.assets.license")}</TableHead>
+                  <TableHead>{t("manager.assets.jurisdiction")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("common.price")}
+                  </TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("manager.assets.listed")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("common.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -93,7 +103,7 @@ export default async function ManagerAssetsPage({
                   <TableRow key={asset.id}>
                     <TableCell className="max-w-[16rem] font-medium">
                       <Link
-                        href={`/assets/${asset.id}`}
+                        href={localizePath(locale, `/assets/${asset.id}`)}
                         className="line-clamp-1 hover:text-primary hover:underline hover:underline-offset-4"
                       >
                         {asset.title}
@@ -121,13 +131,13 @@ export default async function ManagerAssetsPage({
                       {asset.jurisdiction}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatPrice(asset.price, asset.currency)}
+                      {formatPrice(asset.price, asset.currency, locale)}
                     </TableCell>
                     <TableCell>
                       <AssetStatusBadge status={asset.status} />
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground tabular-nums">
-                      {formatDate(asset.createdAt)}
+                      {formatDate(asset.createdAt, locale)}
                     </TableCell>
                     <TableCell>
                       <ManagerAssetRowActions

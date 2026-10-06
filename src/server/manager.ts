@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/guards";
 import { memberModerationError } from "@/lib/auth/permissions";
+import { localizeError } from "@/i18n/server";
 import {
   findAssetById,
   updateAsset as updateAssetRecord,
@@ -19,8 +20,10 @@ import {
 } from "@/lib/validation/manager";
 import type { ActionResult } from "@/server/auth";
 
-function firstIssue(error: { issues: { message: string }[] }): string {
-  return error.issues[0]?.message ?? "Invalid input";
+async function firstIssue(error: {
+  issues: { message: string }[];
+}): Promise<string> {
+  return localizeError(error.issues[0]?.message ?? "Invalid input");
 }
 
 function revalidateModerationViews(targetUserId?: string) {
@@ -42,11 +45,13 @@ export async function moderateUser(input: unknown): Promise<ActionResult> {
   const actor = await requireRole("MANAGER");
 
   const parsed = moderateUserSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, error: await firstIssue(parsed.error) };
   const { userId, status } = parsed.data;
 
   const target = await findUserById(userId);
-  if (!target) return { ok: false, error: "Member not found." };
+  if (!target)
+    return { ok: false, error: await localizeError("Member not found.") };
 
   // Guards both the manager-role lock and the no-op transition; no audit entry
   // is written when a request is rejected.
@@ -54,7 +59,7 @@ export async function moderateUser(input: unknown): Promise<ActionResult> {
     { role: target.role, status: target.status },
     status,
   );
-  if (guard) return { ok: false, error: guard };
+  if (guard) return { ok: false, error: await localizeError(guard) };
 
   await updateUserStatus(target.id, status);
   await createAuditLog({
@@ -79,14 +84,19 @@ export async function moderateAsset(input: unknown): Promise<ActionResult> {
   const actor = await requireRole("MANAGER");
 
   const parsed = moderateAssetSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, error: await firstIssue(parsed.error) };
   const { assetId, status } = parsed.data as ModerateAssetInput;
 
   const asset = await findAssetById(assetId);
-  if (!asset) return { ok: false, error: "Asset not found." };
+  if (!asset)
+    return { ok: false, error: await localizeError("Asset not found.") };
 
   if (asset.status === status) {
-    return { ok: false, error: "Listing is already in this state." };
+    return {
+      ok: false,
+      error: await localizeError("Listing is already in this state."),
+    };
   }
 
   await updateAssetRecord(asset.id, { status });

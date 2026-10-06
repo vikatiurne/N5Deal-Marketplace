@@ -1,21 +1,19 @@
-const DATE_FORMAT = new Intl.DateTimeFormat("en-IE", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-});
+import { intlLocale, type Locale } from "@/i18n/config";
 
-const DATE_TIME_FORMAT = new Intl.DateTimeFormat("en-IE", {
-  day: "2-digit",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-export function formatDate(date: Date): string {
-  return DATE_FORMAT.format(date);
+export function formatDate(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }
 
-export function formatDateTime(date: Date): string {
-  return DATE_TIME_FORMAT.format(date);
+export function formatDateTime(date: Date, locale: Locale): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }

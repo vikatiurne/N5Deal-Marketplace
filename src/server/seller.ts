@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/guards";
+import { localizePath } from "@/i18n/config";
+import { getLocale, localizeError } from "@/i18n/server";
 import {
   createAsset as createAssetRecord,
   findOwnedAsset,
@@ -25,10 +27,12 @@ import {
 import type { ActionResult } from "@/server/auth";
 
 /** 403 semantics: no mutation, no throw, no information leak. */
-const FORBIDDEN: ActionResult = {
-  ok: false,
-  error: "You can only manage your own listings.",
-};
+async function forbidden(): Promise<ActionResult> {
+  return {
+    ok: false,
+    error: await localizeError("You can only manage your own listings."),
+  };
+}
 
 function isPrismaUniqueError(e: unknown): boolean {
   return (
@@ -36,8 +40,10 @@ function isPrismaUniqueError(e: unknown): boolean {
   );
 }
 
-function firstIssue(error: { issues: { message: string }[] }): string {
-  return error.issues[0]?.message ?? "Invalid input";
+async function firstIssue(error: {
+  issues: { message: string }[];
+}): Promise<string> {
+  return localizeError(error.issues[0]?.message ?? "Invalid input");
 }
 
 /**
@@ -46,16 +52,18 @@ function firstIssue(error: { issues: { message: string }[] }): string {
  */
 export async function createAsset(input: unknown): Promise<ActionResult> {
   const user = await requireRole("SELLER");
+  const locale = await getLocale();
 
   const form = assetFormSchema.safeParse(input);
   if (!form.success) {
-    return { ok: false, error: firstIssue(form.error) };
+    return { ok: false, error: await firstIssue(form.error) };
   }
 
   const intent = saveIntentSchema.safeParse(
     (input as { intent?: unknown })?.intent ?? "draft",
   );
-  if (!intent.success) return { ok: false, error: "Invalid save intent" };
+  if (!intent.success)
+    return { ok: false, error: await localizeError("Invalid save intent") };
 
   const data: AssetFormInput = form.data;
   await createAssetRecord({
@@ -72,7 +80,7 @@ export async function createAsset(input: unknown): Promise<ActionResult> {
   revalidatePath("/seller");
   revalidatePath("/seller/assets");
   revalidatePath("/assets");
-  return { ok: true, redirectTo: "/seller/assets" };
+  return { ok: true, redirectTo: localizePath(locale, "/seller/assets") };
 }
 
 /**
@@ -86,20 +94,21 @@ export async function updateAssetDetails(
 
   const form = assetFormSchema.safeParse(input);
   if (!form.success) {
-    return { ok: false, error: firstIssue(form.error) };
+    return { ok: false, error: await firstIssue(form.error) };
   }
 
   const raw = input as { id?: unknown; intent?: unknown };
   if (typeof raw.id !== "string" || raw.id.length === 0) {
-    return { ok: false, error: "Missing asset" };
+    return { ok: false, error: await localizeError("Missing asset") };
   }
 
   const intent = saveIntentSchema.safeParse(raw.intent ?? "draft");
-  if (!intent.success) return { ok: false, error: "Invalid save intent" };
+  if (!intent.success)
+    return { ok: false, error: await localizeError("Invalid save intent") };
 
   // Ownership gate before any write.
   const owned = await findOwnedAsset(raw.id, user.id);
-  if (!owned) return FORBIDDEN;
+  if (!owned) return forbidden();
 
   const data: AssetFormInput = form.data;
   const status =
@@ -132,10 +141,11 @@ export async function setAssetStatus(input: unknown): Promise<ActionResult> {
   const user = await requireRole("SELLER");
 
   const parsed = assetStatusActionSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, error: await firstIssue(parsed.error) };
 
   const owned = await findOwnedAsset(parsed.data.id, user.id);
-  if (!owned) return FORBIDDEN;
+  if (!owned) return forbidden();
 
   await updateAssetRecord(owned.id, { status: parsed.data.status });
 
@@ -155,24 +165,30 @@ export async function sendBuyerMessage(input: unknown): Promise<ActionResult> {
   const user = await requireRole("SELLER");
 
   const parsed = sellerMessageSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, error: await firstIssue(parsed.error) };
 
   const { buyerId, assetId, message } = parsed.data;
 
   const owned = await findOwnedAsset(assetId, user.id);
-  if (!owned) return FORBIDDEN;
+  if (!owned) return forbidden();
 
   // Cannot message a buyer who has no account on the platform.
   const buyer = await findBuyerProfile(buyerId);
   if (!buyer) {
-    return { ok: false, error: "This buyer is no longer available." };
+    return {
+      ok: false,
+      error: await localizeError("This buyer is no longer available."),
+    };
   }
 
   const existing = await findInquiry(assetId, buyerId, "SELLER");
   if (existing) {
     return {
       ok: false,
-      error: "You already sent a message to this buyer about this asset.",
+      error: await localizeError(
+        "You already sent a message to this buyer about this asset.",
+      ),
     };
   }
 
@@ -187,7 +203,9 @@ export async function sendBuyerMessage(input: unknown): Promise<ActionResult> {
     if (isPrismaUniqueError(e)) {
       return {
         ok: false,
-        error: "You already sent a message to this buyer about this asset.",
+        error: await localizeError(
+          "You already sent a message to this buyer about this asset.",
+        ),
       };
     }
     throw e;
@@ -205,7 +223,8 @@ export async function markInquiriesAsRead(
   const user = await requireRole("SELLER");
 
   const parsed = markReadSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+  if (!parsed.success)
+    return { ok: false, error: await firstIssue(parsed.error) };
 
   await markInquiriesRead(parsed.data.inquiryIds, user.id);
 

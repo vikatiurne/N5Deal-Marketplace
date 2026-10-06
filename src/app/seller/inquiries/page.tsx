@@ -1,10 +1,8 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { Inbox } from "lucide-react";
 
 import { AssetStatusBadge } from "@/components/seller/AssetStatusBadge";
 import { MarkReadButton } from "@/components/seller/MarkReadButton";
-import { LICENSE_LABELS } from "@/lib/badgeStyles";
 import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { localizePath } from "@/i18n/config";
+import { LICENSE_KEYS } from "@/i18n/core";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import {
   countIncomingInquiries,
@@ -22,12 +23,15 @@ import {
 } from "@/lib/db/repositories/inquiries";
 import { formatDateTime } from "@/lib/formatDate";
 
-export const metadata: Metadata = {
-  title: "Inbox",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("seller.inquiries.meta") };
+}
 
 export default async function SellerInquiriesPage() {
   const user = await requireRole("SELLER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
 
   const [inquiries, total] = await Promise.all([
     listIncomingInquiries({ sellerId: user.id }),
@@ -54,12 +58,14 @@ export default async function SellerInquiriesPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Inquiries inbox
+            {t("seller.inquiries.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {total} received
-            {unreadTotal > 0 ? ` · ${unreadTotal} unread` : ""} · grouped by
-            listing
+            {t("seller.inquiries.received", { count: total })}
+            {unreadTotal > 0
+              ? ` · ${t("seller.inquiries.unread", { count: unreadTotal })}`
+              : ""}{" "}
+            · {t("seller.inquiries.grouped")}
           </p>
         </div>
         <MarkReadButton
@@ -72,11 +78,13 @@ export default async function SellerInquiriesPage() {
       {groups.length === 0 ? (
         <EmptyState
           icon={Inbox}
-          title="Nothing in the inbox"
-          description="When a buyer contacts you about a listing, the request lands here."
+          title={t("seller.inquiries.empty.title")}
+          description={t("seller.inquiries.empty.description")}
           action={
             <Button asChild>
-              <Link href="/seller/assets">Review my listings</Link>
+              <Link href={href("/seller/assets")}>
+                {t("seller.inquiries.empty.action")}
+              </Link>
             </Button>
           }
         />
@@ -94,7 +102,7 @@ export default async function SellerInquiriesPage() {
                     <div className="flex flex-col gap-1">
                       <CardTitle className="text-base">
                         <Link
-                          href={`/assets/${group.asset.id}`}
+                          href={href(`/assets/${group.asset.id}`)}
                           className="hover:text-primary hover:underline hover:underline-offset-4"
                         >
                           {group.asset.title}
@@ -102,7 +110,7 @@ export default async function SellerInquiriesPage() {
                       </CardTitle>
                       <CardDescription className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs">
-                          {LICENSE_LABELS[group.asset.licenseType]} ·{" "}
+                          {t(LICENSE_KEYS[group.asset.licenseType])} ·{" "}
                           {group.asset.jurisdiction}
                         </span>
                         <AssetStatusBadge status={group.asset.status} />
@@ -129,11 +137,13 @@ export default async function SellerInquiriesPage() {
                                 : "text-muted-foreground"
                             }
                           >
-                            {inquiry.readAt === null ? "Unread" : "Read"}
+                            {inquiry.readAt === null
+                              ? t("seller.inquiry.unread")
+                              : t("seller.inquiry.read")}
                           </Badge>
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {formatDateTime(inquiry.createdAt)}
+                          {formatDateTime(inquiry.createdAt, locale)}
                         </span>
                       </div>
                       <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">

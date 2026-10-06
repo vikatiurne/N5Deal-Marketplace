@@ -5,17 +5,17 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
+import { getT } from "@/i18n/server";
 
 /**
  * Skeleton for `/buyer`. Mirrors the real page: heading, two overview cards,
  * then a "Matched assets" section with the same 3-column grid as `/assets`.
  */
-export default function BuyerLoading() {
+export default async function BuyerLoading() {
+  const t = await getT();
+
   return (
-    <SkeletonRegion
-      label="Loading buyer workspace"
-      className="flex flex-col gap-8"
-    >
+    <SkeletonRegion label={t("buyer.loading")} className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <Skeleton className="h-8 w-52" />
         <Skeleton className="h-4 w-40" />

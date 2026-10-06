@@ -9,21 +9,32 @@ import {
   Users,
 } from "lucide-react";
 
+import { useLocaleHref, useT } from "@/i18n/client";
+import { isUkPath, stripUkPrefix } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/manager", label: "Overview", icon: LayoutDashboard },
-  { href: "/manager/users", label: "Members", icon: Users },
-  { href: "/manager/assets", label: "Listings", icon: BriefcaseBusiness },
-  { href: "/manager/audit", label: "Audit log", icon: ScrollText },
+  { href: "/manager", label: "manager.nav.overview", icon: LayoutDashboard },
+  { href: "/manager/users", label: "manager.nav.users", icon: Users },
+  {
+    href: "/manager/assets",
+    label: "manager.nav.assets",
+    icon: BriefcaseBusiness,
+  },
+  { href: "/manager/audit", label: "manager.nav.audit", icon: ScrollText },
 ] as const;
 
 export function ManagerNav() {
+  const t = useT();
+  const localizedHref = useLocaleHref();
   const pathname = usePathname();
+  // The browser path keeps the /uk prefix; active state compares the logical
+  // path so both locales light up the same entry.
+  const logicalPath = isUkPath(pathname) ? stripUkPrefix(pathname) : pathname;
 
   return (
     <nav
-      aria-label="Manager"
+      aria-label={t("nav.manager")}
       className="flex flex-col gap-4 lg:sticky lg:top-20"
     >
       {/* Below `sm` the 5-entry strip could not fit 375px and hid items behind a scroll nobody could see; a 2-column grid shows every entry with no horizontal scroll at all. */}
@@ -31,14 +42,14 @@ export function ManagerNav() {
         {NAV_ITEMS.map((item) => {
           const active =
             item.href === "/manager"
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
+              ? logicalPath === item.href
+              : logicalPath.startsWith(item.href);
           const Icon = item.icon;
 
           return (
             <li key={item.href} className="shrink-0">
               <Link
-                href={item.href}
+                href={localizedHref(item.href)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
@@ -48,7 +59,7 @@ export function ManagerNav() {
                 )}
               >
                 <Icon className="size-4" aria-hidden="true" />
-                {item.label}
+                {t(item.label)}
               </Link>
             </li>
           );
@@ -56,10 +67,10 @@ export function ManagerNav() {
       </ul>
 
       <Link
-        href="/assets"
+        href={localizedHref("/assets")}
         className="text-sm text-muted-foreground hover:text-foreground hover:underline hover:underline-offset-4"
       >
-        See public marketplace →
+        {t("manager.nav.seeMarketplace")}
       </Link>
     </nav>
   );

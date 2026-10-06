@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useT } from "@/i18n/client";
 
 interface ConfirmDialogProps {
   /** Row-level trigger button. Pass a hidden span when driving `open` yourself. */
@@ -44,6 +45,7 @@ export function ConfirmDialog({
   open,
   onOpenChange,
 }: ConfirmDialogProps) {
+  const t = useT();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -55,7 +57,7 @@ export function ConfirmDialog({
         <DialogFooter>
           <DialogClose asChild>
             <Button type="button" variant="outline" disabled={isPending}>
-              Cancel
+              {t("common.cancel")}
             </Button>
           </DialogClose>
           <Button

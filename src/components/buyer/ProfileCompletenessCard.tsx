@@ -10,20 +10,32 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { localizePath } from "@/i18n/config";
+import type { MessageKey } from "@/i18n/core";
+import { getLocale, getT } from "@/i18n/server";
 import type { ProfileCompleteness } from "@/lib/buyer/matching";
 
-export function ProfileCompletenessCard({
+const MISSING_LABEL_KEYS: Record<string, MessageKey> = {
+  Company: "buyer.field.company",
+  Jurisdictions: "buyer.field.jurisdictions",
+  "License types": "buyer.field.licenseTypes",
+  Budget: "buyer.field.budget",
+  Description: "common.description",
+};
+
+export async function ProfileCompletenessCard({
   completeness,
 }: {
   completeness: ProfileCompleteness;
 }) {
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
   const complete = completeness.percent === 100;
 
   return (
     <Card className="flex h-full flex-col bg-surface">
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-2 text-base">
-          Profile completeness
+          {t("buyer.completeness.title")}
           <Badge
             variant="outline"
             className={
@@ -32,13 +44,15 @@ export function ProfileCompletenessCard({
                 : "border-warning/40 bg-warning/10 text-warning"
             }
           >
-            {complete ? "Complete" : "Incomplete"}
+            {complete
+              ? t("buyer.completeness.complete")
+              : t("buyer.completeness.incomplete")}
           </Badge>
         </CardTitle>
         <CardDescription>
           {complete
-            ? "Sellers can find you in the buyer directory."
-            : "A complete profile gets you matched with relevant listings."}
+            ? t("buyer.completeness.completeDescription")
+            : t("buyer.completeness.incompleteDescription")}
         </CardDescription>
       </CardHeader>
 
@@ -49,7 +63,7 @@ export function ProfileCompletenessCard({
             aria-valuenow={completeness.percent}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label="Profile completeness"
+            aria-label={t("buyer.completeness.title")}
             className="h-2 flex-1 overflow-hidden rounded-full bg-muted"
           >
             <div
@@ -64,14 +78,20 @@ export function ProfileCompletenessCard({
 
         {completeness.missing.length > 0 && (
           <p className="mt-3 text-sm text-muted-foreground">
-            Missing: {completeness.missing.join(", ")}.
+            {t("buyer.completeness.missing", {
+              fields: completeness.missing
+                .map((label) => t(MISSING_LABEL_KEYS[label]))
+                .join(", "),
+            })}
           </p>
         )}
       </CardContent>
 
       <CardFooter>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/buyer/profile">Edit profile</Link>
+          <Link href={localizePath(locale, "/buyer/profile")}>
+            {t("buyer.completeness.edit")}
+          </Link>
         </Button>
       </CardFooter>
     </Card>

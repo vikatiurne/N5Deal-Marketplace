@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { createInquiry } from "@/server/buyer";
+import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 const MESSAGE_MIN = 20;
@@ -37,6 +38,7 @@ export function ContactSellerButton({
 }: ContactSellerButtonProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -54,8 +56,8 @@ export function ContactSellerButton({
 
       if (!result.ok) {
         toast({
-          title: "Inquiry not sent",
-          description: result.error ?? "Please try again.",
+          title: t("contact.failed.title"),
+          description: result.error ?? t("contact.failed.description"),
           variant: "destructive",
         });
         return;
@@ -66,8 +68,11 @@ export function ContactSellerButton({
       setMessage("");
       router.refresh();
       toast({
-        title: "Inquiry sent",
-        description: `${sellerName} will see your message about “${assetTitle}”.`,
+        title: t("contact.sent.title"),
+        description: t("contact.sent.description", {
+          sellerName,
+          assetTitle,
+        }),
       });
     });
   }
@@ -76,34 +81,38 @@ export function ContactSellerButton({
     return (
       <Button variant="outline" disabled>
         <Check className="size-4" aria-hidden="true" />
-        Inquiry sent ✓
+        {t("contact.sentBadge")}
       </Button>
     );
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button onClick={() => setOpen(true)}>Contact seller</Button>
+      <Button onClick={() => setOpen(true)}>{t("contact.button")}</Button>
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Contact seller</DialogTitle>
+            <DialogTitle>{t("contact.title")}</DialogTitle>
             <DialogDescription>
-              Send an inquiry about “{assetTitle}” to {sellerName}. Seller
-              contact details stay private — the platform relays your message.
+              {t("contact.description", { assetTitle, sellerName })}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
-              <Label htmlFor="inquiry-message">Your message</Label>
+              <Label htmlFor="inquiry-message">
+                {t("contact.messageLabel")}
+              </Label>
               <span
                 className={cn(
                   "text-xs tabular-nums",
                   tooShort ? "text-destructive" : "text-muted-foreground",
                 )}
               >
-                {trimmed.length} / min {MESSAGE_MIN}
+                {t("contact.counter", {
+                  count: trimmed.length,
+                  min: MESSAGE_MIN,
+                })}
               </span>
             </div>
             <Textarea
@@ -117,7 +126,7 @@ export function ContactSellerButton({
               maxLength={2000}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="We are interested in this licence. Could you share the last two years of audited financials and details on the regulatory history?"
+              placeholder={t("contact.placeholder")}
               autoFocus
             />
             {tooShort && (
@@ -125,7 +134,7 @@ export function ContactSellerButton({
                 id="inquiry-message-error"
                 className="text-xs text-destructive"
               >
-                Add a bit more detail — at least {MESSAGE_MIN} characters.
+                {t("contact.tooShort", { min: MESSAGE_MIN })}
               </p>
             )}
           </div>
@@ -137,13 +146,13 @@ export function ContactSellerButton({
               onClick={() => setOpen(false)}
               disabled={isPending}
             >
-              Cancel
+              {t("contact.cancel")}
             </Button>
             <Button
               type="submit"
               disabled={isPending || trimmed.length < MESSAGE_MIN}
             >
-              {isPending ? "Sending…" : "Send inquiry"}
+              {isPending ? t("contact.sending") : t("contact.send")}
             </Button>
           </DialogFooter>
         </form>

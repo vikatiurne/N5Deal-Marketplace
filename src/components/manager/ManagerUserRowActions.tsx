@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useT } from "@/i18n/client";
+import type { MessageKey } from "@/i18n/core";
 import { moderateUser } from "@/server/manager";
 import type { Role, UserStatus } from "@/types";
 
@@ -28,13 +30,14 @@ interface ManagerUserRowActionsProps {
   };
 }
 
-const DONE_LABEL: Record<UserStatus, string> = {
-  ACTIVE: "Member reactivated",
-  SUSPENDED: "Member suspended",
-  DELETED: "Member soft-deleted",
+const DONE_KEYS: Record<UserStatus, MessageKey> = {
+  ACTIVE: "manager.action.userReactivated",
+  SUSPENDED: "manager.action.userSuspended",
+  DELETED: "manager.action.userSoftDeleted",
 };
 
 export function ManagerUserRowActions({ user }: ManagerUserRowActionsProps) {
+  const t = useT();
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -50,14 +53,14 @@ export function ManagerUserRowActions({ user }: ManagerUserRowActionsProps) {
       const result = await moderateUser({ userId: user.id, status });
       if (!result.ok) {
         toast({
-          title: "Action failed",
-          description: result.error ?? "Try again.",
+          title: t("manager.toast.failed"),
+          description: result.error ?? t("common.retry"),
           variant: "destructive",
         });
         return;
       }
       router.refresh();
-      toast({ title: DONE_LABEL[status], description: user.email });
+      toast({ title: t(DONE_KEYS[status]), description: user.email });
     });
   }
 
@@ -73,22 +76,19 @@ export function ManagerUserRowActions({ user }: ManagerUserRowActionsProps) {
 
   const confirmCopy = {
     SUSPENDED: {
-      title: `Suspend ${user.email}?`,
-      description:
-        "They will be signed out immediately and cannot sign in again until a manager reactivates the account. Their listings and inquiries are kept.",
-      label: "Suspend member",
+      title: t("manager.userActions.suspendTitle", { email: user.email }),
+      description: t("manager.userActions.suspendDescription"),
+      label: t("manager.userActions.suspendConfirm"),
     },
     DELETED: {
-      title: `Soft-delete ${user.email}?`,
-      description:
-        "The account can no longer sign in and drops out of the buyer directory and matching. Nothing is deleted: listings and inquiries stay in the database and can be restored.",
-      label: "Soft-delete member",
+      title: t("manager.userActions.deleteTitle", { email: user.email }),
+      description: t("manager.userActions.deleteDescription"),
+      label: t("manager.userActions.deleteConfirm"),
     },
     ACTIVE: {
-      title: `Reactivate ${user.email}?`,
-      description:
-        "The account gets full access again, including the buyer directory.",
-      label: "Reactivate member",
+      title: t("manager.userActions.reactivateTitle", { email: user.email }),
+      description: t("manager.userActions.reactivateDescription"),
+      label: t("manager.userActions.reactivateConfirm"),
     },
   } as const;
 
@@ -105,7 +105,9 @@ export function ManagerUserRowActions({ user }: ManagerUserRowActionsProps) {
             onClick={() => run("ACTIVE")}
           >
             <RotateCcw className="size-4" aria-hidden="true" />
-            <span className="sr-only sm:not-sr-only">Reactivate</span>
+            <span className="sr-only sm:not-sr-only">
+              {t("manager.userActions.reactivate")}
+            </span>
           </Button>
         )}
 
@@ -114,10 +116,10 @@ export function ManagerUserRowActions({ user }: ManagerUserRowActionsProps) {
             variant="ghost"
             size="sm"
             disabled
-            title="Manager accounts cannot be suspended or deleted"
+            title={t("manager.userActions.lockedHint")}
           >
             <Ban className="size-4" aria-hidden="true" />
-            Locked
+            {t("manager.userActions.locked")}
           </Button>
         ) : (
           <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -126,18 +128,20 @@ export function ManagerUserRowActions({ user }: ManagerUserRowActionsProps) {
                 variant="ghost"
                 size="sm"
                 disabled={isPending || (!canSuspend && !canDelete)}
-                aria-label={`Actions for ${user.email}`}
+                aria-label={t("manager.userActions.aria", {
+                  email: user.email,
+                })}
               >
-                Moderate
+                {t("manager.moderate")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Moderation</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("manager.moderation")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {canSuspend && (
                 <DropdownMenuItem onSelect={() => askConfirmation("SUSPENDED")}>
                   <Ban className="size-4" aria-hidden="true" />
-                  Suspend
+                  {t("manager.userActions.suspend")}
                 </DropdownMenuItem>
               )}
               {canDelete && (
@@ -146,7 +150,7 @@ export function ManagerUserRowActions({ user }: ManagerUserRowActionsProps) {
                   onSelect={() => askConfirmation("DELETED")}
                 >
                   <Trash2 className="size-4" aria-hidden="true" />
-                  Soft-delete
+                  {t("manager.userActions.softDelete")}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>

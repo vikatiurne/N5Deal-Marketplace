@@ -1,14 +1,16 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
+import { getT } from "@/i18n/server";
 
 /**
  * Skeleton for `/manager`. Mirrors the real page: heading, four stat cards,
  * then the platform breakdown table and the two recent-activity lists.
  */
-export default function ManagerLoading() {
+export default async function ManagerLoading() {
+  const t = await getT();
   return (
     <SkeletonRegion
-      label="Loading platform overview"
+      label={t("manager.loading.overview")}
       className="flex flex-col gap-8"
     >
       <div className="flex flex-col gap-1">

@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLocaleHref, useT } from "@/i18n/client";
+import { ASSET_STATUS_KEYS, LICENSE_KEYS } from "@/i18n/core";
 import { AssetStatus, JURISDICTIONS, LicenseType } from "@/types";
 
 const LICENSE_OPTIONS = Object.values(LicenseType);
@@ -33,6 +35,8 @@ function selectedValues(params: URLSearchParams, key: string): string[] {
  * comma-separated values (`?licenseType=EMI,PI`).
  */
 export function ManagerAssetFilterBar() {
+  const t = useT();
+  const localizedHref = useLocaleHref();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -86,29 +90,29 @@ export function ManagerAssetFilterBar() {
           className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end"
         >
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="manager-asset-q">Search</Label>
+            <Label htmlFor="manager-asset-q">{t("common.search")}</Label>
             <Input
               id="manager-asset-q"
               name="q"
               type="search"
-              placeholder="Title or description…"
+              placeholder={t("manager.assetFilter.placeholder")}
               defaultValue={params.get("q") ?? ""}
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label id="manager-asset-status-label">Status</Label>
+            <Label id="manager-asset-status-label">{t("common.status")}</Label>
             <Select value={status} onValueChange={changeStatus}>
               <SelectTrigger
                 aria-labelledby="manager-asset-status-label"
                 className="w-44"
               >
-                <SelectValue placeholder="All statuses" />
+                <SelectValue placeholder={t("manager.filters.allStatuses")} />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_OPTIONS.map((option) => (
                   <SelectItem key={option} value={option}>
-                    {option[0] + option.slice(1).toLowerCase()}
+                    {t(ASSET_STATUS_KEYS[option])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -116,10 +120,12 @@ export function ManagerAssetFilterBar() {
           </div>
 
           <div className="flex items-end gap-2">
-            <Button type="submit">Apply</Button>
+            <Button type="submit">{t("manager.filters.apply")}</Button>
             {queryKey.length > 0 && (
               <Button type="button" variant="outline" asChild>
-                <Link href="/manager/assets">Reset</Link>
+                <Link href={localizedHref("/manager/assets")}>
+                  {t("manager.filters.reset")}
+                </Link>
               </Button>
             )}
           </div>
@@ -127,7 +133,9 @@ export function ManagerAssetFilterBar() {
 
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">License type</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t("manager.assetFilter.licenseType")}
+            </legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {LICENSE_OPTIONS.map((option) => (
                 <label
@@ -138,14 +146,16 @@ export function ManagerAssetFilterBar() {
                     checked={selectedLicense.includes(option)}
                     onCheckedChange={() => toggle(option, "licenseType")}
                   />
-                  {option}
+                  {t(LICENSE_KEYS[option])}
                 </label>
               ))}
             </div>
           </fieldset>
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">Jurisdiction</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t("manager.assetFilter.jurisdiction")}
+            </legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {JURISDICTION_OPTIONS.map((option) => (
                 <label

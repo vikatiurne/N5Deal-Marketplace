@@ -13,10 +13,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DEMO_ACCOUNTS } from "@/lib/auth/demoAccounts";
+import { useT } from "@/i18n/client";
+import { ROLE_KEYS, USER_STATUS_KEYS, type MessageKey } from "@/i18n/core";
 import type { UserStatus } from "@/types";
+
+const DEMO_ROLE_KEYS: Record<"Manager" | "Seller" | "Buyer", MessageKey> = {
+  Manager: ROLE_KEYS.MANAGER,
+  Seller: ROLE_KEYS.SELLER,
+  Buyer: ROLE_KEYS.BUYER,
+};
 
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  const t = useT();
 
   async function copy() {
     try {
@@ -33,7 +42,7 @@ function CopyButton({ value, label }: { value: string; label: string }) {
       type="button"
       variant="ghost"
       size="icon-xs"
-      aria-label={`Copy ${label}`}
+      aria-label={t("auth.demo.copyAria", { label })}
       onClick={copy}
     >
       {copied ? <Check className="text-primary" /> : <Copy />}
@@ -46,12 +55,14 @@ export function DemoCredentials({
 }: {
   statuses?: Partial<Record<string, UserStatus>>;
 }) {
+  const t = useT();
+
   return (
     <Card className="bg-surface">
       <CardHeader>
-        <CardTitle className="text-base">Demo credentials</CardTitle>
+        <CardTitle className="text-base">{t("auth.demo.title")}</CardTitle>
         <CardDescription>
-          One password for all seeded accounts:{" "}
+          {t("auth.demo.description")}{" "}
           <code className="text-foreground">password123</code>
         </CardDescription>
       </CardHeader>
@@ -71,7 +82,7 @@ export function DemoCredentials({
                     : "shrink-0 text-muted-foreground"
                 }
               >
-                {account.role}
+                {t(DEMO_ROLE_KEYS[account.role])}
               </Badge>
               <div className="flex min-w-0 flex-1 items-center gap-1">
                 <span className="min-w-0 truncate font-mono text-xs">
@@ -79,16 +90,16 @@ export function DemoCredentials({
                 </span>
                 <CopyButton
                   value={account.email}
-                  label={`${account.email} email`}
+                  label={t("auth.demo.emailAria", { email: account.email })}
                 />
               </div>
               {status !== "ACTIVE" && (
                 <Badge
                   variant="outline"
-                  title="Sign-in is blocked for this account"
+                  title={t("auth.demo.blockedTitle")}
                   className="shrink-0 border-destructive/40 text-destructive"
                 >
-                  {status.toLowerCase()}
+                  {t(USER_STATUS_KEYS[status])}
                 </Badge>
               )}
               <span className="ml-auto flex shrink-0 items-center gap-1">
@@ -97,7 +108,7 @@ export function DemoCredentials({
                 </code>
                 <CopyButton
                   value={account.password}
-                  label={`${account.email} password`}
+                  label={t("auth.demo.passwordAria", { email: account.email })}
                 />
               </span>
             </div>

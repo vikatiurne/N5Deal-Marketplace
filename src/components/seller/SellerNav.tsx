@@ -10,38 +10,59 @@ import {
   Users,
 } from "lucide-react";
 
+import { useLocaleHref, useT } from "@/i18n/client";
+import { isUkPath, stripUkPrefix } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/seller", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  {
+    href: "/seller",
+    labelKey: "seller.nav.dashboard",
+    icon: LayoutDashboard,
+    exact: true,
+  },
   {
     href: "/seller/assets",
-    label: "My assets",
+    labelKey: "seller.assets.title",
     icon: BriefcaseBusiness,
     exact: false,
   },
   {
     href: "/seller/assets/new",
-    label: "New asset",
+    labelKey: "seller.assets.new",
     icon: PlusCircle,
     exact: false,
   },
-  { href: "/seller/buyers", label: "Buyers", icon: Users, exact: false },
-  { href: "/seller/inquiries", label: "Inquiries", icon: Inbox, exact: false },
+  {
+    href: "/seller/buyers",
+    labelKey: "seller.buyers.title",
+    icon: Users,
+    exact: false,
+  },
+  {
+    href: "/seller/inquiries",
+    labelKey: "seller.inquiries.nav",
+    icon: Inbox,
+    exact: false,
+  },
 ] as const;
 
 export function SellerNav() {
   const pathname = usePathname();
+  const t = useT();
+  const localizedHref = useLocaleHref();
 
-  // Exactly one entry lights up: "/seller/assets" prefix-matches
+  // The pathname carries the /uk prefix; match against the logical path so
+  // exactly one entry lights up: "/seller/assets" prefix-matches
   // "/seller/assets/new" too, so the most specific match wins.
+  const logicalPath = isUkPath(pathname) ? stripUkPrefix(pathname) : pathname;
   const activeHref = NAV_ITEMS.filter((item) =>
-    item.exact ? pathname === item.href : pathname.startsWith(item.href),
+    item.exact ? logicalPath === item.href : logicalPath.startsWith(item.href),
   ).sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <nav
-      aria-label="Seller"
+      aria-label={t("seller.nav.aria")}
       className="flex flex-col gap-4 lg:sticky lg:top-20"
     >
       {/* Below `sm` the 5-entry strip could not fit 375px and hid items behind a scroll nobody could see; a 2-column grid shows every entry with no horizontal scroll at all. */}
@@ -52,7 +73,7 @@ export function SellerNav() {
           return (
             <li key={item.href} className="shrink-0">
               <Link
-                href={item.href}
+                href={localizedHref(item.href)}
                 aria-current={item.href === activeHref ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
@@ -62,7 +83,7 @@ export function SellerNav() {
                 )}
               >
                 <Icon className="size-4" aria-hidden="true" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             </li>
           );
@@ -70,10 +91,10 @@ export function SellerNav() {
       </ul>
 
       <Link
-        href="/assets"
+        href={localizedHref("/assets")}
         className="text-sm text-muted-foreground hover:text-foreground hover:underline hover:underline-offset-4"
       >
-        See public marketplace →
+        {t("seller.nav.public")}
       </Link>
     </nav>
   );

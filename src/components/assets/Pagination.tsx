@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { localizePath } from "@/i18n/config";
+import { getLocale, getT } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 
 interface PaginationProps {
@@ -50,7 +52,7 @@ function pageNumbers(page: number, totalPages: number): number[] {
 /**
  * Server-rendered, Link-based pagination — no client JS needed.
  */
-export function Pagination({
+export async function Pagination({
   page,
   totalPages,
   searchParams,
@@ -58,11 +60,14 @@ export function Pagination({
 }: PaginationProps) {
   if (totalPages <= 1) return null;
 
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const route = localizePath(locale, basePath);
+
   const numbers = pageNumbers(page, totalPages);
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t("pagination.label")}
       className="flex items-center justify-center gap-1"
     >
       <Button
@@ -73,13 +78,13 @@ export function Pagination({
       >
         {page > 1 ? (
           <Link
-            href={pageHref(page - 1, searchParams, basePath)}
-            aria-label="Previous page"
+            href={pageHref(page - 1, searchParams, route)}
+            aria-label={t("pagination.prevLabel")}
           >
-            ← Prev
+            {t("pagination.prev")}
           </Link>
         ) : (
-          <span aria-hidden="true">← Prev</span>
+          <span aria-hidden="true">{t("pagination.prev")}</span>
         )}
       </Button>
 
@@ -95,7 +100,7 @@ export function Pagination({
           {n === page ? (
             <span>{n}</span>
           ) : (
-            <Link href={pageHref(n, searchParams, basePath)}>{n}</Link>
+            <Link href={pageHref(n, searchParams, route)}>{n}</Link>
           )}
         </Button>
       ))}
@@ -108,13 +113,13 @@ export function Pagination({
       >
         {page < totalPages ? (
           <Link
-            href={pageHref(page + 1, searchParams, basePath)}
-            aria-label="Next page"
+            href={pageHref(page + 1, searchParams, route)}
+            aria-label={t("pagination.nextLabel")}
           >
-            Next →
+            {t("pagination.next")}
           </Link>
         ) : (
-          <span aria-hidden="true">Next →</span>
+          <span aria-hidden="true">{t("pagination.next")}</span>
         )}
       </Button>
     </nav>

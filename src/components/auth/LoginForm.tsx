@@ -9,16 +9,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/auth/PasswordInput";
+import { useLocaleHref, useT } from "@/i18n/client";
+import type { MessageKey } from "@/i18n/core";
 
-/** Maps Auth.js `code` query values to human-readable messages. */
-const ERROR_MESSAGES: Record<string, string> = {
-  account_suspended: "This account is suspended. Contact the platform manager.",
-  account_deleted: "This account has been deleted.",
-  no_account: "Invalid email or password.",
-  invalid_password: "Invalid email or password.",
-  credentials: "Invalid email or password.",
-  Configuration: "Sign-in is misconfigured. Try again later.",
-  AccessDenied: "You do not have access to this account.",
+/** Maps Auth.js `code` query values to message keys. */
+const ERROR_KEYS: Record<string, MessageKey> = {
+  account_suspended: "auth.error.accountSuspended",
+  account_deleted: "auth.error.accountDeleted",
+  no_account: "auth.error.invalidCredentials",
+  invalid_password: "auth.error.invalidCredentials",
+  credentials: "auth.error.invalidCredentials",
+  Configuration: "auth.error.configuration",
+  AccessDenied: "auth.error.accessDenied",
 };
 
 export function LoginForm() {
@@ -29,12 +31,14 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const t = useT();
+  const localizedHref = useLocaleHref();
 
   const next = searchParams.get("next");
   const urlError = searchParams.get("error") ?? searchParams.get("code");
   const registered = searchParams.get("registered") === "1";
   const initialError = urlError
-    ? (ERROR_MESSAGES[urlError] ?? "Sign-in failed.")
+    ? t(ERROR_KEYS[urlError] ?? "auth.error.signInFailed")
     : null;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -48,17 +52,17 @@ export function LoginForm() {
       });
       if (result?.error) {
         const code = result.code ?? "credentials";
-        const message = ERROR_MESSAGES[code] ?? "Sign-in failed. Try again.";
+        const message = t(ERROR_KEYS[code] ?? "auth.error.signInFailedRetry");
         setError(message);
         toast({
-          title: "Could not sign in",
+          title: t("auth.login.toast.failedTitle"),
           description: message,
           variant: "destructive",
         });
         return;
       }
       // "/" resolves the role home for the fresh session.
-      router.push(next ?? "/");
+      router.push(next ?? localizedHref("/"));
       router.refresh();
     });
   }
@@ -78,7 +82,7 @@ export function LoginForm() {
           role="status"
           className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-primary"
         >
-          Account created. You can sign in now.
+          {t("auth.login.registeredNotice")}
         </p>
       )}
       {error && (
@@ -91,7 +95,7 @@ export function LoginForm() {
       )}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t("common.email")}</Label>
         <Input
           id="email"
           name="email"
@@ -105,7 +109,7 @@ export function LoginForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t("auth.field.password")}</Label>
         <PasswordInput
           id="password"
           name="password"
@@ -118,7 +122,7 @@ export function LoginForm() {
       </div>
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Signing in…" : "Sign in"}
+        {isPending ? t("auth.login.submitPending") : t("nav.signIn")}
       </Button>
     </form>
   );

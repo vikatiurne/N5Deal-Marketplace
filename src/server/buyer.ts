@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/auth/guards";
+import { localizeError } from "@/i18n/server";
 import { findAssetById } from "@/lib/db/repositories/assets";
 import {
   createInquiry as createInquiryRecord,
@@ -37,7 +38,9 @@ export async function updateBuyerProfile(
   if (!parsed.success) {
     return {
       ok: false,
-      error: parsed.error.issues[0]?.message ?? "Invalid input",
+      error: await localizeError(
+        parsed.error.issues[0]?.message ?? "Invalid input",
+      ),
     };
   }
 
@@ -54,7 +57,10 @@ export async function updateBuyerProfile(
     });
   } catch (e) {
     if (isPrismaUniqueError(e)) {
-      return { ok: false, error: "Could not save profile — try again." };
+      return {
+        ok: false,
+        error: await localizeError("Could not save profile — try again."),
+      };
     }
     throw e;
   }
@@ -76,7 +82,9 @@ export async function createInquiry(input: unknown): Promise<ActionResult> {
   if (!parsed.success) {
     return {
       ok: false,
-      error: parsed.error.issues[0]?.message ?? "Invalid input",
+      error: await localizeError(
+        parsed.error.issues[0]?.message ?? "Invalid input",
+      ),
     };
   }
 
@@ -84,7 +92,10 @@ export async function createInquiry(input: unknown): Promise<ActionResult> {
 
   const asset = await findAssetById(data.assetId);
   if (!asset || asset.status !== "PUBLISHED") {
-    return { ok: false, error: "This asset is no longer available." };
+    return {
+      ok: false,
+      error: await localizeError("This asset is no longer available."),
+    };
   }
 
   // Check first for a precise message; P2002 below covers the race.
@@ -92,7 +103,7 @@ export async function createInquiry(input: unknown): Promise<ActionResult> {
   if (existing) {
     return {
       ok: false,
-      error: "You already sent an inquiry for this asset.",
+      error: await localizeError("You already sent an inquiry for this asset."),
     };
   }
 
@@ -107,7 +118,9 @@ export async function createInquiry(input: unknown): Promise<ActionResult> {
     if (isPrismaUniqueError(e)) {
       return {
         ok: false,
-        error: "You already sent an inquiry for this asset.",
+        error: await localizeError(
+          "You already sent an inquiry for this asset.",
+        ),
       };
     }
     throw e;

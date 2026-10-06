@@ -9,79 +9,90 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { localizePath } from "@/i18n/config";
+import { type MessageKey } from "@/i18n/core";
+import { getLocale, getT } from "@/i18n/server";
 import { getSession } from "@/lib/auth/guards";
 import { ROLE_HOME } from "@/lib/auth/types";
 
-const ROLES = [
+interface RoleCard {
+  title: MessageKey;
+  description: MessageKey;
+  href: string;
+  cta: MessageKey;
+}
+
+const ROLES: RoleCard[] = [
   {
-    title: "Buyer",
-    description:
-      "Find licensed fintech companies, filter by license type and jurisdiction, contact sellers.",
+    title: "home.roleBuyerTitle",
+    description: "home.roleBuyerDescription",
     href: "/assets",
-    cta: "Browse assets",
+    cta: "home.roleBuyerCta",
   },
   {
-    title: "Seller",
-    description:
-      "Publish assets, browse buyer profiles and respond to incoming inquiries.",
+    title: "home.roleSellerTitle",
+    description: "home.roleSellerDescription",
     href: "/seller",
-    cta: "Open seller workspace",
+    cta: "home.roleSellerCta",
   },
   {
-    title: "Platform Manager",
-    description:
-      "Moderate members and assets, search and filter the platform, manage compliance.",
+    title: "home.roleManagerTitle",
+    description: "home.roleManagerDescription",
     href: "/manager",
-    cta: "Open manager console",
+    cta: "home.roleManagerCta",
   },
-] as const;
+];
 
 export default async function Home() {
   // Logged-in users go straight to their role home (task 03, deliverable 7).
   const session = await getSession();
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
   if (session && session.status === "ACTIVE") {
-    redirect(ROLE_HOME[session.role]);
+    redirect(localizePath(locale, ROLE_HOME[session.role]));
   }
 
   return (
     <div className="flex flex-col gap-10">
       <section className="flex flex-col items-start gap-4">
         <Badge variant="outline" className="border-primary/40 text-primary">
-          Test assignment build
+          {t("home.badge")}
         </Badge>
         <h1 className="max-w-2xl text-4xl font-semibold sm:text-5xl">
-          N5Deal — marketplace for FinTech &amp; M&amp;A assets
+          {t("home.title")}
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
-          Buy and sell licensed fintech companies: EMI, PI, MiCA CASP and more.
-          Persistent demo data, role-based workspaces, AI-assisted search.
+          {t("home.subtitle")}
         </p>
         <div className="flex gap-3">
           <Button asChild>
-            <Link href="/assets">Browse assets</Link>
+            <Link href={href("/assets")}>{t("home.browseAssets")}</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/login">Login</Link>
+            <Link href={href("/login")}>{t("home.login")}</Link>
           </Button>
           <Button variant="ghost" asChild>
-            <Link href="/register">Create account</Link>
+            <Link href={href("/register")}>{t("home.createAccount")}</Link>
           </Button>
         </div>
       </section>
 
-      <section aria-label="Roles" className="grid gap-4 sm:grid-cols-3">
+      <section
+        aria-label={t("home.rolesLabel")}
+        className="grid gap-4 sm:grid-cols-3"
+      >
         {ROLES.map((role) => (
           <Card key={role.title} className="bg-surface">
             <CardHeader>
-              <CardTitle className="text-lg">{role.title}</CardTitle>
-              <CardDescription>{role.description}</CardDescription>
+              <CardTitle className="text-lg">{t(role.title)}</CardTitle>
+              <CardDescription>{t(role.description)}</CardDescription>
             </CardHeader>
             <div className="px-6 pb-6">
               <Link
-                href={role.href}
+                href={href(role.href)}
                 className="text-sm font-medium text-primary hover:underline hover:underline-offset-4"
               >
-                {role.cta} →
+                {t(role.cta)} →
               </Link>
             </div>
           </Card>

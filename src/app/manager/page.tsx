@@ -1,6 +1,5 @@
-import type { Metadata } from "next";
 import Link from "next/link";
-import { LICENSE_LABELS, ROLE_LABELS, ROLE_STYLES } from "@/lib/badgeStyles";
+import { ROLE_STYLES } from "@/lib/badgeStyles";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -28,6 +27,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { localizePath } from "@/i18n/config";
+import { LICENSE_KEYS, ROLE_KEYS, USER_STATUS_KEYS } from "@/i18n/core";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import {
   countAssetsByStatus,
@@ -42,9 +44,10 @@ import { formatDateTime } from "@/lib/formatDate";
 import { formatPrice } from "@/lib/formatPrice";
 import type { AssetStatus, Role, UserStatus } from "@/types";
 
-export const metadata: Metadata = {
-  title: "Manager overview",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("manager.home.meta.title") };
+}
 
 const RECENT = 5;
 const ROLES: Role[] = ["BUYER", "SELLER", "MANAGER"];
@@ -58,6 +61,8 @@ const ASSET_STATUSES: AssetStatus[] = [
 
 export default async function ManagerHomePage() {
   const user = await requireRole("MANAGER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
 
   const [userCounts, assetCounts, inquiryCounts, recentUsers, recentAssets] =
     await Promise.all([
@@ -83,11 +88,10 @@ export default async function ManagerHomePage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Platform overview
+          {t("manager.home.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Moderating {user.email} · every action below is written to the audit
-          log.
+          {t("manager.home.subtitle", { email: user.email })}
         </p>
       </div>
 
@@ -97,13 +101,15 @@ export default async function ManagerHomePage() {
           <CardHeader>
             <CardDescription className="flex items-center gap-1.5">
               <Users className="size-4" aria-hidden="true" />
-              Members
+              {t("manager.home.membersCard")}
             </CardDescription>
             <CardTitle className="text-3xl tabular-nums">{userTotal}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {userCounts.SELLER.ACTIVE} active sellers ·{" "}
-            {userCounts.BUYER.ACTIVE} active buyers
+            {t("manager.home.membersCardNote", {
+              sellers: userCounts.SELLER.ACTIVE,
+              buyers: userCounts.BUYER.ACTIVE,
+            })}
           </CardContent>
         </Card>
 
@@ -111,15 +117,19 @@ export default async function ManagerHomePage() {
           <CardHeader>
             <CardDescription className="flex items-center gap-1.5">
               <BriefcaseBusiness className="size-4" aria-hidden="true" />
-              Listings
+              {t("manager.home.listingsCard")}
             </CardDescription>
             <CardTitle className="text-3xl tabular-nums">
               {assetTotal}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {assetCounts.PUBLISHED} live · {assetCounts.DRAFT} draft ·{" "}
-            {assetCounts.PAUSED} paused · {assetCounts.REMOVED} removed
+            {t("manager.home.listingsCardNote", {
+              published: assetCounts.PUBLISHED,
+              draft: assetCounts.DRAFT,
+              paused: assetCounts.PAUSED,
+              removed: assetCounts.REMOVED,
+            })}
           </CardContent>
         </Card>
 
@@ -127,15 +137,17 @@ export default async function ManagerHomePage() {
           <CardHeader>
             <CardDescription className="flex items-center gap-1.5">
               <Inbox className="size-4" aria-hidden="true" />
-              Inquiries
+              {t("manager.home.inquiriesCard")}
             </CardDescription>
             <CardTitle className="text-3xl tabular-nums">
               {inquiryCounts.total}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            {inquiryCounts.fromBuyers} buyer → seller ·{" "}
-            {inquiryCounts.fromSellers} seller → buyer
+            {t("manager.home.inquiriesCardNote", {
+              fromBuyers: inquiryCounts.fromBuyers,
+              fromSellers: inquiryCounts.fromSellers,
+            })}
           </CardContent>
         </Card>
 
@@ -143,7 +155,7 @@ export default async function ManagerHomePage() {
           <CardHeader>
             <CardDescription className="flex items-center gap-1.5">
               <UserPlus className="size-4" aria-hidden="true" />
-              Needs attention
+              {t("manager.home.attentionCard")}
             </CardDescription>
             <CardTitle className="text-3xl tabular-nums">
               {userCounts.SELLER.SUSPENDED +
@@ -153,7 +165,7 @@ export default async function ManagerHomePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            suspended or soft-deleted members
+            {t("manager.home.attentionCardNote")}
           </CardContent>
         </Card>
       </div>
@@ -164,15 +176,15 @@ export default async function ManagerHomePage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
               <CardTitle className="text-base">
-                Members by role and status
+                {t("manager.home.matrixTitle")}
               </CardTitle>
               <CardDescription>
-                Click a number to open the filtered moderation table.
+                {t("manager.home.matrixDescription")}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/manager/users">
-                Manage members
+              <Link href={href("/manager/users")}>
+                {t("manager.home.manageMembers")}
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </Button>
@@ -182,24 +194,30 @@ export default async function ManagerHomePage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Role</TableHead>
+                <TableHead>{t("common.role")}</TableHead>
                 {USER_STATUSES.map((status) => (
                   <TableHead key={status} className="text-right">
-                    {status[0] + status.slice(1).toLowerCase()}
+                    {t(USER_STATUS_KEYS[status])}
                   </TableHead>
                 ))}
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">
+                  {t("manager.home.total")}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ROLES.map((role) => (
                 <TableRow key={role}>
-                  <TableCell className="font-medium">{role}</TableCell>
+                  <TableCell className="font-medium">
+                    {t(ROLE_KEYS[role])}
+                  </TableCell>
                   {USER_STATUSES.map((status) => (
                     <TableCell key={status} className="text-right">
                       {userCounts[role][status] > 0 ? (
                         <Link
-                          href={`/manager/users?role=${role}&status=${status}`}
+                          href={href(
+                            `/manager/users?role=${role}&status=${status}`,
+                          )}
                           className="tabular-nums hover:text-primary hover:underline hover:underline-offset-4"
                         >
                           {userCounts[role][status]}
@@ -229,15 +247,16 @@ export default async function ManagerHomePage() {
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col gap-1">
-              <CardTitle className="text-base">Listings by status</CardTitle>
+              <CardTitle className="text-base">
+                {t("manager.home.assetMatrixTitle")}
+              </CardTitle>
               <CardDescription>
-                Removing a listing hides it from the marketplace but keeps it
-                visible here.
+                {t("manager.home.assetMatrixDescription")}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/manager/assets">
-                Manage listings
+              <Link href={href("/manager/assets")}>
+                {t("manager.home.manageListings")}
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </Button>
@@ -247,7 +266,7 @@ export default async function ManagerHomePage() {
           {ASSET_STATUSES.map((status) => (
             <Link
               key={status}
-              href={`/manager/assets?status=${status}`}
+              href={href(`/manager/assets?status=${status}`)}
               className="rounded-lg border border-border p-4 transition-colors hover:border-primary/50 hover:bg-accent"
             >
               <AssetStatusBadge status={status} />
@@ -263,8 +282,12 @@ export default async function ManagerHomePage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Card className="bg-surface">
           <CardHeader>
-            <CardTitle className="text-base">Recent signups</CardTitle>
-            <CardDescription>Latest {RECENT} accounts.</CardDescription>
+            <CardTitle className="text-base">
+              {t("manager.home.recentMembersTitle")}
+            </CardTitle>
+            <CardDescription>
+              {t("manager.home.recentMembersDescription", { limit: RECENT })}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="flex flex-col divide-y divide-border">
@@ -284,11 +307,11 @@ export default async function ManagerHomePage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className={ROLE_STYLES[u.role]}>
-                      {ROLE_LABELS[u.role]}
+                      {t(ROLE_KEYS[u.role])}
                     </Badge>
                     <ManagerUserStatusBadge status={u.status} />
                     <span className="text-xs text-muted-foreground tabular-nums">
-                      {formatDateTime(u.createdAt)}
+                      {formatDateTime(u.createdAt, locale)}
                     </span>
                   </div>
                 </li>
@@ -299,8 +322,12 @@ export default async function ManagerHomePage() {
 
         <Card className="bg-surface">
           <CardHeader>
-            <CardTitle className="text-base">Recent listings</CardTitle>
-            <CardDescription>Latest {RECENT} assets.</CardDescription>
+            <CardTitle className="text-base">
+              {t("manager.home.recentListingsTitle")}
+            </CardTitle>
+            <CardDescription>
+              {t("manager.home.recentListingsDescription", { limit: RECENT })}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="flex flex-col divide-y divide-border">
@@ -311,15 +338,17 @@ export default async function ManagerHomePage() {
                 >
                   <div className="min-w-0">
                     <Link
-                      href={`/manager/assets?q=${encodeURIComponent(asset.title)}`}
+                      href={href(
+                        `/manager/assets?q=${encodeURIComponent(asset.title)}`,
+                      )}
                       className="line-clamp-1 text-sm font-medium hover:text-primary hover:underline hover:underline-offset-4"
                     >
                       {asset.title}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">
                       {asset.seller.displayName} ·{" "}
-                      {LICENSE_LABELS[asset.licenseType]} ·{" "}
-                      {formatPrice(asset.price, asset.currency)}
+                      {t(LICENSE_KEYS[asset.licenseType])} ·{" "}
+                      {formatPrice(asset.price, asset.currency, locale)}
                     </p>
                   </div>
                   <AssetStatusBadge status={asset.status} />
@@ -331,8 +360,10 @@ export default async function ManagerHomePage() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Inquiries total {inquiryCounts.total} · {inquiryCounts.unread} still
-        unread by sellers.
+        {t("manager.home.inquiriesFooter", {
+          total: inquiryCounts.total,
+          unread: inquiryCounts.unread,
+        })}
       </p>
     </div>
   );

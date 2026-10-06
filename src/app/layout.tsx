@@ -3,32 +3,39 @@ import type { Metadata } from "next";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/toaster";
+import { I18nProvider } from "@/i18n/client";
+import { getLocale, getT } from "@/i18n/server";
 
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: {
-    default: "N5Deal — FinTech & M&A asset marketplace",
-    template: "%s · N5Deal",
-  },
-  description:
-    "Mini-marketplace for buying and selling licensed fintech companies.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: {
+      default: t("meta.title.default"),
+      template: "%s · N5Deal",
+    },
+    description: t("meta.description"),
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   return (
-    <html lang="en" className="dark">
+    <html lang={locale} className="dark">
       <body className="flex min-h-screen flex-col antialiased">
-        <SiteHeader />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-          {children}
-        </main>
-        <SiteFooter />
-        <Toaster />
+        <I18nProvider locale={locale}>
+          <SiteHeader />
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+            {children}
+          </main>
+          <SiteFooter />
+          <Toaster />
+        </I18nProvider>
       </body>
     </html>
   );

@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/i18n/client";
 
 /**
  * Shows how the AI read the query. The explanation lives in the URL (`exp=`),
@@ -15,6 +16,7 @@ export function AiInterpretationBanner() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const t = useT();
   const explanation = params.get("exp");
   const [dismissed, setDismissed] = useState(false);
 
@@ -41,14 +43,13 @@ export function AiInterpretationBanner() {
           className="mr-1.5 inline size-4 text-primary"
           aria-hidden="true"
         />
-        <span className="font-medium">AI interpreted your query as:</span>{" "}
-        {explanation}
+        <span className="font-medium">{t("ai.label")}</span> {explanation}
       </p>
       <Button
         variant="ghost"
         size="icon"
         onClick={dismiss}
-        aria-label="Dismiss AI interpretation"
+        aria-label={t("ai.dismiss")}
         className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
       >
         <X className="size-4" />

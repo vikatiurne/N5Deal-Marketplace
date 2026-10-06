@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { Users } from "lucide-react";
 
@@ -14,14 +13,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { localizePath } from "@/i18n/config";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import { listBuyers } from "@/lib/db/repositories/buyers";
 import { formatBudgetRange } from "@/lib/formatPrice";
 import { buyerSearchSchema } from "@/lib/validation/seller";
 
-export const metadata: Metadata = {
-  title: "Buyers",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("seller.buyers.title") };
+}
 
 const PAGE_SIZE = 12;
 
@@ -33,6 +35,8 @@ export default async function SellerBuyersPage({
   searchParams: Promise<RawParams>;
 }) {
   await requireRole("SELLER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
 
   const raw = await searchParams;
   const parsed = buyerSearchSchema.safeParse(raw);
@@ -46,11 +50,13 @@ export default async function SellerBuyersPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Buyers</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("seller.buyers.title")}
+        </h1>
         <p className="text-sm text-muted-foreground">
           {total === 0
-            ? "No buyers match the filters"
-            : `${total} ${total === 1 ? "buyer" : "buyers"} with a public profile`}
+            ? t("seller.buyers.subtitle.none")
+            : t("seller.buyers.subtitle", { count: total })}
         </p>
       </div>
 
@@ -59,10 +65,10 @@ export default async function SellerBuyersPage({
       {buyers.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No buyers match"
-          description="Widen the budget range or clear the jurisdiction and license filters."
-          actionHref="/seller/buyers"
-          actionLabel="Reset filters"
+          title={t("seller.buyers.empty.title")}
+          description={t("seller.buyers.empty.description")}
+          actionHref={href("/seller/buyers")}
+          actionLabel={t("seller.buyers.empty.action")}
         />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">
@@ -72,7 +78,7 @@ export default async function SellerBuyersPage({
                 <CardHeader>
                   <CardTitle className="text-base">
                     <Link
-                      href={`/seller/buyers/${buyer.userId}`}
+                      href={href(`/seller/buyers/${buyer.userId}`)}
                       className="hover:text-primary hover:underline hover:underline-offset-4"
                     >
                       {buyer.company ?? buyer.displayName}
@@ -80,7 +86,11 @@ export default async function SellerBuyersPage({
                   </CardTitle>
                   <CardDescription>
                     {buyer.company ? `${buyer.displayName} · ` : ""}
-                    {formatBudgetRange(buyer.budgetMin, buyer.budgetMax)}
+                    {formatBudgetRange(
+                      buyer.budgetMin,
+                      buyer.budgetMax,
+                      locale,
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col gap-3">
@@ -111,8 +121,8 @@ export default async function SellerBuyersPage({
                     asChild
                     className="mt-auto w-fit"
                   >
-                    <Link href={`/seller/buyers/${buyer.userId}`}>
-                      View profile
+                    <Link href={href(`/seller/buyers/${buyer.userId}`)}>
+                      {t("seller.buyers.viewProfile")}
                     </Link>
                   </Button>
                 </CardContent>

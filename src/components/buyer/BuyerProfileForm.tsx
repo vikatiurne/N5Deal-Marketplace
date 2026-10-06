@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useT } from "@/i18n/client";
+import { LICENSE_KEYS } from "@/i18n/core";
 import { updateBuyerProfile } from "@/server/buyer";
 import { cn } from "@/lib/utils";
 import { JURISDICTIONS, LicenseType, type BuyerProfile } from "@/types";
@@ -28,6 +30,7 @@ export function BuyerProfileForm({
 }: BuyerProfileFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
   const [isPending, startTransition] = useTransition();
 
   const [company, setCompany] = useState(initialCompany);
@@ -71,10 +74,11 @@ export function BuyerProfileForm({
       });
 
       if (!result.ok) {
-        setError(result.error ?? "Could not save profile.");
+        setError(result.error ?? t("buyer.profile.saveError"));
         toast({
-          title: "Profile not saved",
-          description: result.error ?? "Check the fields and try again.",
+          title: t("buyer.profile.toastFailedTitle"),
+          description:
+            result.error ?? t("buyer.profile.toastFailedDescription"),
           variant: "destructive",
         });
         return;
@@ -82,8 +86,8 @@ export function BuyerProfileForm({
 
       router.refresh();
       toast({
-        title: "Profile saved",
-        description: "Your dashboard now matches assets to these interests.",
+        title: t("buyer.profile.toastSavedTitle"),
+        description: t("buyer.profile.toastSavedDescription"),
       });
     });
   }
@@ -106,7 +110,7 @@ export function BuyerProfileForm({
       <Card className="bg-surface">
         <CardContent className="flex flex-col gap-6 pt-6">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="company">Company</Label>
+            <Label htmlFor="company">{t("buyer.profile.company")}</Label>
             <Input
               id="company"
               name="company"
@@ -121,7 +125,7 @@ export function BuyerProfileForm({
 
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium">
-              Jurisdictions of interest
+              {t("buyer.profile.jurisdictions")}
             </legend>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {JURISDICTIONS.map((code) => (
@@ -140,13 +144,13 @@ export function BuyerProfileForm({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Licences in these countries are matched to your dashboard.
+              {t("buyer.profile.jurisdictionsHint")}
             </p>
           </fieldset>
 
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium">
-              License types of interest
+              {t("buyer.profile.licenseTypes")}
             </legend>
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               {LICENSE_OPTIONS.map((option) => (
@@ -160,7 +164,7 @@ export function BuyerProfileForm({
                       toggle(option, licenseTypes, setLicenseTypes)
                     }
                   />
-                  {option}
+                  {t(LICENSE_KEYS[option])}
                 </label>
               ))}
             </div>
@@ -168,7 +172,7 @@ export function BuyerProfileForm({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="budgetMin">Budget from (EUR)</Label>
+              <Label htmlFor="budgetMin">{t("buyer.profile.budgetMin")}</Label>
               <Input
                 id="budgetMin"
                 name="budgetMin"
@@ -182,7 +186,7 @@ export function BuyerProfileForm({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="budgetMax">Budget up to (EUR)</Label>
+              <Label htmlFor="budgetMax">{t("buyer.profile.budgetMax")}</Label>
               <Input
                 id="budgetMax"
                 name="budgetMax"
@@ -199,7 +203,9 @@ export function BuyerProfileForm({
 
           <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
-              <Label htmlFor="description">Acquisition interests</Label>
+              <Label htmlFor="description">
+                {t("buyer.profile.descriptionLabel")}
+              </Label>
               <span
                 className={cn(
                   "text-xs tabular-nums",
@@ -208,7 +214,10 @@ export function BuyerProfileForm({
                     : "text-muted-foreground",
                 )}
               >
-                {description.trim().length} / min {DESCRIPTION_MIN}
+                {t("buyer.profile.counter", {
+                  count: description.trim().length,
+                  min: DESCRIPTION_MIN,
+                })}
               </span>
             </div>
             <Textarea
@@ -224,11 +233,11 @@ export function BuyerProfileForm({
               maxLength={2000}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Looking for an established EMI in the Baltics with passporting rights across the EEA…"
+              placeholder={t("buyer.profile.descriptionPlaceholder")}
             />
             {descriptionTooShort && (
               <p id="description-error" className="text-xs text-destructive">
-                Add a bit more detail — at least {DESCRIPTION_MIN} characters.
+                {t("buyer.profile.tooShort", { min: DESCRIPTION_MIN })}
               </p>
             )}
           </div>
@@ -237,10 +246,10 @@ export function BuyerProfileForm({
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={isPending}>
-          {isPending ? "Saving…" : "Save profile"}
+          {isPending ? t("buyer.profile.saving") : t("buyer.profile.save")}
         </Button>
         <p className="text-xs text-muted-foreground">
-          Interests drive your matched listings on the dashboard.
+          {t("buyer.profile.hint")}
         </p>
       </div>
     </form>

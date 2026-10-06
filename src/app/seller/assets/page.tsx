@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { BriefcaseBusiness, PlusCircle } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
@@ -18,16 +17,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { localizePath } from "@/i18n/config";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import { listSellerAssets } from "@/lib/db/repositories/assets";
 import { formatPrice } from "@/lib/formatPrice";
 
-export const metadata: Metadata = {
-  title: "My assets",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("seller.assets.title") };
+}
 
 export default async function SellerAssetsPage() {
   const user = await requireRole("SELLER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
 
   const assets = await listSellerAssets(user.id);
 
@@ -35,16 +39,17 @@ export default async function SellerAssetsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">My assets</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t("seller.assets.title")}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            {assets.length} {assets.length === 1 ? "listing" : "listings"} ·
-            only published ones appear on the public marketplace.
+            {t("seller.assets.subtitle", { count: assets.length })}
           </p>
         </div>
         <Button asChild>
-          <Link href="/seller/assets/new">
+          <Link href={href("/seller/assets/new")}>
             <PlusCircle className="size-4" aria-hidden="true" />
-            New asset
+            {t("seller.assets.new")}
           </Link>
         </Button>
       </div>
@@ -52,11 +57,13 @@ export default async function SellerAssetsPage() {
       {assets.length === 0 ? (
         <EmptyState
           icon={BriefcaseBusiness}
-          title="No listings yet"
-          description="Publish your first licensed entity to reach buyers."
+          title={t("seller.assets.empty.title")}
+          description={t("seller.assets.empty.description")}
           action={
             <Button asChild>
-              <Link href="/seller/assets/new">Create an asset</Link>
+              <Link href={href("/seller/assets/new")}>
+                {t("seller.assets.empty.action")}
+              </Link>
             </Button>
           }
         />
@@ -65,17 +72,23 @@ export default async function SellerAssetsPage() {
           <CardContent className="pt-6">
             <Table>
               <TableCaption className="text-xs">
-                Your listings. Only published assets are visible to buyers.
+                {t("seller.assets.caption")}
               </TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>License</TableHead>
-                  <TableHead>Jurisdiction</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Inquiries</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("seller.assets.col.title")}</TableHead>
+                  <TableHead>{t("seller.assets.col.license")}</TableHead>
+                  <TableHead>{t("seller.assets.col.jurisdiction")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("common.price")}
+                  </TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("seller.assets.col.inquiries")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("common.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -83,7 +96,7 @@ export default async function SellerAssetsPage() {
                   <TableRow key={asset.id}>
                     <TableCell className="max-w-[16rem] font-medium">
                       <Link
-                        href={`/assets/${asset.id}`}
+                        href={href(`/assets/${asset.id}`)}
                         className="line-clamp-1 hover:text-primary hover:underline hover:underline-offset-4"
                       >
                         {asset.title}
@@ -96,7 +109,7 @@ export default async function SellerAssetsPage() {
                       {asset.jurisdiction}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatPrice(asset.price, asset.currency)}
+                      {formatPrice(asset.price, asset.currency, locale)}
                     </TableCell>
                     <TableCell>
                       <AssetStatusBadge status={asset.status} />
@@ -108,7 +121,9 @@ export default async function SellerAssetsPage() {
                           variant="outline"
                           className="ml-2 border-primary/40 text-primary"
                         >
-                          {asset.unreadCount} new
+                          {t("seller.assets.newBadge", {
+                            count: asset.unreadCount,
+                          })}
                         </Badge>
                       )}
                     </TableCell>

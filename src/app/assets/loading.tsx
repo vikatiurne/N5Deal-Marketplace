@@ -5,6 +5,7 @@ import {
   SkeletonHeading,
   SkeletonRegion,
 } from "@/components/ui/skeleton";
+import { getT } from "@/i18n/server";
 
 /**
  * Skeleton for `/assets`. Mirrors the real page one-for-one — heading, AI
@@ -13,12 +14,10 @@ import {
  * generic `h-40` block for two different cards and fixed the cards at `h-56`,
  * which did not match the real card height at all.
  */
-export default function AssetsLoading() {
+export default async function AssetsLoading() {
+  const t = await getT();
   return (
-    <SkeletonRegion
-      label="Loading asset listings"
-      className="flex flex-col gap-6"
-    >
+    <SkeletonRegion label={t("assets.loading")} className="flex flex-col gap-6">
       <SkeletonHeading />
 
       {/* SmartSearchBar: label row, input + button row, hint line. */}

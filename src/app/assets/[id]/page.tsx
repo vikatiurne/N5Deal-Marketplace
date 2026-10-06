@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 
 import { ContactSellerButton } from "@/components/assets/ContactSellerButton";
 import { LicenseTypeBadge } from "@/components/assets/LicenseTypeBadge";
-import { LICENSE_LABELS } from "@/lib/badgeStyles";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatPrice } from "@/lib/formatPrice";
+import { localizePath } from "@/i18n/config";
+import { LICENSE_KEYS } from "@/i18n/core";
+import { getLocale, getT } from "@/i18n/server";
 import { getSession } from "@/lib/auth/guards";
 import { findAssetById } from "@/lib/db/repositories/assets";
 import { findInquiry } from "@/lib/db/repositories/inquiries";
@@ -26,17 +28,22 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
   const asset = await findAssetById(id);
   if (!asset || asset.status !== "PUBLISHED") {
-    return { title: "Asset not found" };
+    return { title: t("assets.notFound") };
   }
   const seller = await findUserById(asset.sellerId);
   if (!seller || seller.status !== "ACTIVE") {
-    return { title: "Asset not found" };
+    return { title: t("assets.notFound") };
   }
   return {
     title: asset.title,
-    description: `${LICENSE_LABELS[asset.licenseType]} in ${asset.jurisdiction} — ${formatPrice(asset.price, asset.currency)}`,
+    description: t("assets.metaDetail.description", {
+      license: t(LICENSE_KEYS[asset.licenseType]),
+      jurisdiction: asset.jurisdiction,
+      price: formatPrice(asset.price, asset.currency, locale),
+    }),
   };
 }
 
@@ -47,7 +54,12 @@ export default async function AssetDetailPage({
 }) {
   const { id } = await params;
   const asset = await findAssetById(id);
-  const session = await getSession();
+  const [session, locale, t] = await Promise.all([
+    getSession(),
+    getLocale(),
+    getT(),
+  ]);
+  const href = (path: string) => localizePath(locale, path);
   const role = session?.status === "ACTIVE" ? session.role : null;
   const moderator = role === "MANAGER";
 
@@ -67,10 +79,10 @@ export default async function AssetDetailPage({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <Link
-        href="/assets"
+        href={href("/assets")}
         className="text-sm text-muted-foreground hover:text-foreground hover:underline hover:underline-offset-4"
       >
-        ← Back to listings
+        {t("assets.back")}
       </Link>
 
       <div className="flex flex-col gap-2">
@@ -84,13 +96,13 @@ export default async function AssetDetailPage({
           {asset.title}
         </h1>
         <p className="text-xl font-semibold text-primary">
-          {formatPrice(asset.price, asset.currency)}
+          {formatPrice(asset.price, asset.currency, locale)}
         </p>
       </div>
 
       <Card className="bg-surface">
         <CardHeader>
-          <CardTitle className="text-base">About this asset</CardTitle>
+          <CardTitle className="text-base">{t("assets.about")}</CardTitle>
         </CardHeader>
         <CardContent>
           <CardDescription className="whitespace-pre-line text-sm leading-relaxed text-foreground">
@@ -101,11 +113,11 @@ export default async function AssetDetailPage({
 
       <Card className="bg-surface">
         <CardHeader>
-          <CardTitle className="text-base">Seller</CardTitle>
+          <CardTitle className="text-base">{t("assets.sellerCard")}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm">
-            {seller?.displayName ?? "Seller"}
+            {seller?.displayName ?? t("assets.sellerFallback")}
             {seller?.company ? (
               <span className="text-muted-foreground"> · {seller.company}</span>
             ) : null}
@@ -117,9 +129,9 @@ export default async function AssetDetailPage({
         {!role && (
           <Button asChild>
             <Link
-              href={`/login?next=${encodeURIComponent(`/assets/${asset.id}`)}`}
+              href={`/login?next=${encodeURIComponent(href(`/assets/${asset.id}`))}`}
             >
-              Login to contact seller
+              {t("assets.loginToContact")}
             </Link>
           </Button>
         )}
@@ -127,13 +139,15 @@ export default async function AssetDetailPage({
           <ContactSellerButton
             assetId={asset.id}
             assetTitle={asset.title}
-            sellerName={seller?.displayName ?? "the seller"}
+            sellerName={seller?.displayName ?? t("assets.sellerFallback")}
             alreadySent={Boolean(await findInquiry(asset.id, session.id))}
           />
         )}
         {isOwner && (
           <Button variant="outline" asChild>
-            <Link href={`/seller/assets/${asset.id}/edit`}>Edit asset</Link>
+            <Link href={href(`/seller/assets/${asset.id}/edit`)}>
+              {t("assets.edit")}
+            </Link>
           </Button>
         )}
       </div>

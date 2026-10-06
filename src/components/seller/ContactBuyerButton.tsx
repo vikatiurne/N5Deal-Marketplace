@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/i18n/client";
 import { useToast } from "@/hooks/use-toast";
 import { sendBuyerMessage } from "@/server/seller";
 import { cn } from "@/lib/utils";
@@ -55,6 +56,7 @@ export function ContactBuyerButton({
 }: ContactBuyerButtonProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
 
@@ -77,22 +79,26 @@ export function ContactBuyerButton({
 
       if (!result.ok) {
         toast({
-          title: "Message not sent",
-          description: result.error ?? "Try again.",
+          title: t("seller.contact.error.title"),
+          description: result.error ?? t("common.retry"),
           variant: "destructive",
         });
         return;
       }
 
       const sentTitle =
-        assets.find((asset) => asset.id === assetId)?.title ?? "the listing";
+        assets.find((asset) => asset.id === assetId)?.title ??
+        t("seller.contact.listingFallback");
       setSent((prev) => [...prev, assetId]);
       setMessage("");
       setOpen(false);
       router.refresh();
       toast({
-        title: "Message sent",
-        description: `${buyerLabel} will see your note about “${sentTitle}”.`,
+        title: t("seller.contact.sentTitle"),
+        description: t("seller.contact.sentDescription", {
+          buyer: buyerLabel,
+          asset: sentTitle,
+        }),
       });
     });
   }
@@ -100,8 +106,7 @@ export function ContactBuyerButton({
   if (assets.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Publish a listing before contacting buyers — messages are always tied to
-        one of your assets.
+        {t("seller.contact.noAssets")}
       </p>
     );
   }
@@ -110,26 +115,29 @@ export function ContactBuyerButton({
     return (
       <Button variant="outline" disabled>
         <Check className="size-4" aria-hidden="true" />
-        Message sent ✓
+        {t("seller.contact.allSent")}
       </Button>
     );
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button onClick={() => setOpen(true)}>Contact buyer</Button>
+      <Button onClick={() => setOpen(true)}>{t("seller.contact.open")}</Button>
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Contact {buyerLabel}</DialogTitle>
+            <DialogTitle>
+              {t("seller.contact.dialogTitle", { buyer: buyerLabel })}
+            </DialogTitle>
             <DialogDescription>
-              Buyer contact details stay private — the platform relays your
-              message, attached to a listing.
+              {t("seller.contact.dialogDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-2">
-            <Label id="contact-asset-label">About which asset?</Label>
+            <Label id="contact-asset-label">
+              {t("seller.contact.assetLabel")}
+            </Label>
             <Select value={assetId} onValueChange={setAssetId}>
               <SelectTrigger aria-labelledby="contact-asset-label">
                 <SelectValue />
@@ -146,14 +154,19 @@ export function ContactBuyerButton({
 
           <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
-              <Label htmlFor="seller-message">Your message</Label>
+              <Label htmlFor="seller-message">
+                {t("seller.contact.messageLabel")}
+              </Label>
               <span
                 className={cn(
                   "text-xs tabular-nums",
                   tooShort ? "text-destructive" : "text-muted-foreground",
                 )}
               >
-                {trimmed.length} / min {MESSAGE_MIN}
+                {t("seller.contact.counter", {
+                  count: trimmed.length,
+                  min: MESSAGE_MIN,
+                })}
               </span>
             </div>
             <Textarea
@@ -167,12 +180,12 @@ export function ContactBuyerButton({
               maxLength={2000}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="We can share the audited statements and the licence file under NDA — who should we talk to on your side?"
+              placeholder={t("seller.contact.placeholder")}
               autoFocus
             />
             {tooShort && (
               <p id="seller-message-error" className="text-xs text-destructive">
-                Add a bit more detail — at least {MESSAGE_MIN} characters.
+                {t("seller.contact.tooShort", { min: MESSAGE_MIN })}
               </p>
             )}
           </div>
@@ -184,13 +197,15 @@ export function ContactBuyerButton({
               onClick={() => setOpen(false)}
               disabled={isPending}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="submit"
               disabled={isPending || trimmed.length < MESSAGE_MIN || !assetId}
             >
-              {isPending ? "Sending…" : "Send message"}
+              {isPending
+                ? t("seller.contact.sending")
+                : t("seller.contact.send")}
             </Button>
           </DialogFooter>
         </form>

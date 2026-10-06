@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { BriefcaseBusiness, Inbox, PlusCircle } from "lucide-react";
 
@@ -14,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { localizePath } from "@/i18n/config";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import { countAssetsByStatus } from "@/lib/db/repositories/assets";
 import {
@@ -24,14 +25,17 @@ import { findUserById } from "@/lib/db/repositories/users";
 import { formatDateTime } from "@/lib/formatDate";
 import type { AssetStatus } from "@/types";
 
-export const metadata: Metadata = {
-  title: "Seller workspace",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("seller.dashboard.title") };
+}
 
 const LATEST_INQUIRIES = 5;
 
 export default async function SellerHomePage() {
   const user = await requireRole("SELLER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
 
   const [account, statusCounts, totalInquiries, latest] = await Promise.all([
     findUserById(user.id),
@@ -48,7 +52,7 @@ export default async function SellerHomePage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Seller workspace
+            {t("seller.dashboard.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
             {account?.displayName ?? user.email}
@@ -56,15 +60,15 @@ export default async function SellerHomePage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/seller/assets/new">
+          <Link href={href("/seller/assets/new")}>
             <PlusCircle className="size-4" aria-hidden="true" />
-            New asset
+            {t("seller.assets.new")}
           </Link>
         </Button>
       </div>
 
       <section
-        aria-label="Listings by status"
+        aria-label={t("seller.dashboard.byStatusAria")}
         className="grid gap-4 sm:grid-cols-2"
       >
         <Card className="bg-surface">
@@ -74,10 +78,10 @@ export default async function SellerHomePage() {
                 className="size-4 text-muted-foreground"
                 aria-hidden="true"
               />
-              Listings
+              {t("seller.dashboard.listingsTitle")}
             </CardTitle>
             <CardDescription>
-              Your assets by publication status.
+              {t("seller.dashboard.listingsDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -97,7 +101,9 @@ export default async function SellerHomePage() {
           </CardContent>
           <CardFooter>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/seller/assets">Manage assets</Link>
+              <Link href={href("/seller/assets")}>
+                {t("seller.dashboard.manageAssets")}
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -109,10 +115,10 @@ export default async function SellerHomePage() {
                 className="size-4 text-muted-foreground"
                 aria-hidden="true"
               />
-              Inquiries received
+              {t("seller.dashboard.inquiriesTitle")}
             </CardTitle>
             <CardDescription>
-              Buyer contact requests across all your listings.
+              {t("seller.dashboard.inquiriesDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex items-end gap-3">
@@ -121,25 +127,35 @@ export default async function SellerHomePage() {
             </span>
             {unreadCount > 0 && (
               <span className="pb-1 text-sm text-muted-foreground">
-                {unreadCount} unread in latest {LATEST_INQUIRIES}
+                {t("seller.dashboard.unreadInLatest", {
+                  count: unreadCount,
+                  total: LATEST_INQUIRIES,
+                })}
               </span>
             )}
           </CardContent>
           <CardFooter>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/seller/inquiries">Open inbox</Link>
+              <Link href={href("/seller/inquiries")}>
+                {t("seller.dashboard.openInbox")}
+              </Link>
             </Button>
           </CardFooter>
         </Card>
       </section>
 
-      <section aria-label="Latest inquiries" className="flex flex-col gap-4">
+      <section
+        aria-label={t("seller.dashboard.latestTitle")}
+        className="flex flex-col gap-4"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold tracking-tight">
-            Latest inquiries
+            {t("seller.dashboard.latestTitle")}
           </h2>
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/seller/inquiries">View all</Link>
+            <Link href={href("/seller/inquiries")}>
+              {t("seller.dashboard.viewAll")}
+            </Link>
           </Button>
         </div>
 
@@ -147,10 +163,10 @@ export default async function SellerHomePage() {
           <EmptyState
             className="py-12"
             icon={Inbox}
-            title="No inquiries yet"
-            description="Publish a listing and buyers will find it."
-            actionHref="/seller/assets/new"
-            actionLabel="Create a listing"
+            title={t("seller.dashboard.empty.title")}
+            description={t("seller.dashboard.empty.description")}
+            actionHref={href("/seller/assets/new")}
+            actionLabel={t("seller.dashboard.empty.action")}
           />
         ) : (
           <ul className="flex flex-col gap-3">
@@ -164,7 +180,7 @@ export default async function SellerHomePage() {
                         <span className="font-normal text-muted-foreground">
                           {" · "}
                           <Link
-                            href={`/assets/${inquiry.asset.id}`}
+                            href={href(`/assets/${inquiry.asset.id}`)}
                             className="hover:text-foreground hover:underline hover:underline-offset-4"
                           >
                             {inquiry.asset.title}
@@ -172,7 +188,7 @@ export default async function SellerHomePage() {
                         </span>
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {formatDateTime(inquiry.createdAt)}
+                        {formatDateTime(inquiry.createdAt, locale)}
                       </span>
                     </div>
                     <p className="line-clamp-2 text-sm text-muted-foreground">
@@ -183,7 +199,7 @@ export default async function SellerHomePage() {
                         variant="outline"
                         className="w-fit border-primary/40 text-primary"
                       >
-                        Unread
+                        {t("seller.inquiry.unread")}
                       </Badge>
                     )}
                   </CardContent>

@@ -1,5 +1,7 @@
-import { LICENSE_BADGE_STYLES, LICENSE_LABELS } from "@/lib/badgeStyles";
 import { Badge } from "@/components/ui/badge";
+import { LICENSE_BADGE_STYLES } from "@/lib/badgeStyles";
+import { LICENSE_KEYS } from "@/i18n/core";
+import { getT } from "@/i18n/server";
 import { LicenseType } from "@/types";
 
 /**
@@ -8,19 +10,20 @@ import { LicenseType } from "@/types";
  * raw enum as monospace text — so `MICA_CASP` reached the user both as a pill
  * and as a database value.
  */
-export function LicenseTypeBadge({
+export async function LicenseTypeBadge({
   value,
   className,
 }: {
   value: LicenseType;
   className?: string;
 }) {
+  const t = await getT();
   return (
     <Badge
       variant="outline"
       className={`${LICENSE_BADGE_STYLES[value]} ${className ?? ""}`}
     >
-      {LICENSE_LABELS[value]}
+      {t(LICENSE_KEYS[value])}
     </Badge>
   );
 }

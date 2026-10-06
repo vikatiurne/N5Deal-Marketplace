@@ -13,8 +13,9 @@ import {
   buildFilterQuery,
   type SmartSearchResult,
 } from "@/lib/ai/smartFilters";
+import { useLocaleHref, useT } from "@/i18n/client";
 
-const PLACEHOLDER = "e.g. EMI license in Lithuania under €500k";
+const PLACEHOLDER_KEY = "smart.placeholder";
 
 /**
  * Natural-language entry point. The model output is never trusted here either:
@@ -23,6 +24,8 @@ const PLACEHOLDER = "e.g. EMI license in Lithuania under €500k";
 export function SmartSearchBar() {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
+  const localizedHref = useLocaleHref();
   const [query, setQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -31,8 +34,8 @@ export function SmartSearchBar() {
     const trimmed = query.trim();
     if (trimmed.length < 3) {
       toast({
-        title: "Add a bit more detail",
-        description: "Describe licence, country, budget or sector.",
+        title: t("smart.tooShort.title"),
+        description: t("smart.tooShort.description"),
         variant: "destructive",
       });
       return;
@@ -52,9 +55,8 @@ export function SmartSearchBar() {
             error?: string;
           } | null;
           toast({
-            title: "Slow down a moment",
-            description:
-              payload?.error ?? "AI search limit reached. Try again shortly.",
+            title: t("smart.rate.title"),
+            description: payload?.error ?? t("smart.rate.description"),
             variant: "destructive",
           });
           return;
@@ -65,35 +67,41 @@ export function SmartSearchBar() {
             error?: string;
           } | null;
           toast({
-            title: "AI search unavailable",
-            description: payload?.error ?? "Falling back to keyword search.",
+            title: t("smart.unavailable.title"),
+            description: payload?.error ?? t("smart.unavailable.description"),
             variant: "destructive",
           });
           // Fall back to the plain keyword search the page already supports.
-          router.push(`/assets?q=${encodeURIComponent(trimmed)}&ai=1`);
+          router.push(
+            localizedHref(`/assets?q=${encodeURIComponent(trimmed)}&ai=1`),
+          );
           return;
         }
 
         result = (await response.json()) as SmartSearchResult;
       } catch {
         toast({
-          title: "AI search unavailable",
-          description: "Falling back to keyword search.",
+          title: t("smart.unavailable.title"),
+          description: t("smart.unavailable.description"),
           variant: "destructive",
         });
-        router.push(`/assets?q=${encodeURIComponent(trimmed)}&ai=1`);
+        router.push(
+          localizedHref(`/assets?q=${encodeURIComponent(trimmed)}&ai=1`),
+        );
         return;
       }
 
       const search = buildFilterQuery(result.filters, { ai: "1" });
       router.push(
-        `/assets?${search}&exp=${encodeURIComponent(result.explanation)}`,
+        localizedHref(
+          `/assets?${search}&exp=${encodeURIComponent(result.explanation)}`,
+        ),
       );
 
       if (result.degraded) {
         toast({
-          title: "AI parsing unavailable",
-          description: "Searched your words as keywords instead.",
+          title: t("smart.degraded.title"),
+          description: t("smart.degraded.description"),
         });
       }
     });
@@ -106,7 +114,7 @@ export function SmartSearchBar() {
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="smart-search" className="flex items-center gap-1.5">
               <Sparkles className="size-4 text-primary" aria-hidden="true" />
-              Describe what you are looking for
+              {t("smart.label")}
             </Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
@@ -115,7 +123,7 @@ export function SmartSearchBar() {
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={PLACEHOLDER}
+                placeholder={t(PLACEHOLDER_KEY)}
                 maxLength={300}
                 disabled={isPending}
                 className="flex-1"
@@ -124,13 +132,10 @@ export function SmartSearchBar() {
                 {isPending && (
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                 )}
-                Ask AI
+                {t("smart.ask")}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              AI turns your sentence into licence, country and price filters —
-              refine them with the filters below.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("smart.hint")}</p>
           </div>
         </form>
       </CardContent>

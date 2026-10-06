@@ -4,41 +4,55 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FileText, LayoutDashboard, UserRound } from "lucide-react";
 
+import { useLocaleHref, useT } from "@/i18n/client";
+import { isUkPath, stripUkPrefix } from "@/i18n/config";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/buyer", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  {
+    href: "/buyer",
+    label: "buyer.nav.dashboard",
+    icon: LayoutDashboard,
+    exact: true,
+  },
   {
     href: "/buyer/profile",
-    label: "My profile",
+    label: "buyer.nav.profile",
     icon: UserRound,
     exact: false,
   },
   {
     href: "/buyer/inquiries",
-    label: "Inquiries",
+    label: "buyer.nav.inquiries",
     icon: FileText,
     exact: false,
   },
 ] as const;
 
 export function BuyerNav() {
+  const t = useT();
+  const href = useLocaleHref();
   const pathname = usePathname();
+  // On /uk/... the browser keeps the prefix the middleware rewrote away.
+  const currentPath = isUkPath(pathname) ? stripUkPrefix(pathname) : pathname;
 
   return (
-    <nav aria-label="Buyer" className="flex flex-col gap-4 lg:sticky lg:top-20">
+    <nav
+      aria-label={t("buyer.nav.ariaLabel")}
+      className="flex flex-col gap-4 lg:sticky lg:top-20"
+    >
       {/* Below `sm` the 5-entry strip could not fit 375px and hid items behind a scroll nobody could see; a 2-column grid shows every entry with no horizontal scroll at all. */}
       <ul className="grid grid-cols-2 gap-1 sm:flex sm:overflow-x-auto lg:flex-col">
         {NAV_ITEMS.map((item) => {
           const active = item.exact
-            ? pathname === item.href
-            : pathname.startsWith(item.href);
+            ? currentPath === item.href
+            : currentPath.startsWith(item.href);
           const Icon = item.icon;
 
           return (
             <li key={item.href} className="shrink-0">
               <Link
-                href={item.href}
+                href={href(item.href)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
@@ -48,7 +62,7 @@ export function BuyerNav() {
                 )}
               >
                 <Icon className="size-4" aria-hidden="true" />
-                {item.label}
+                {t(item.label)}
               </Link>
             </li>
           );
@@ -56,10 +70,10 @@ export function BuyerNav() {
       </ul>
 
       <Link
-        href="/assets"
+        href={href("/assets")}
         className="text-sm text-muted-foreground hover:text-foreground hover:underline hover:underline-offset-4"
       >
-        Browse marketplace →
+        {t("buyer.nav.browse")}
       </Link>
     </nav>
   );

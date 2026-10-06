@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useLocaleHref, useT } from "@/i18n/client";
+import { LICENSE_KEYS } from "@/i18n/core";
 import { useToast } from "@/hooks/use-toast";
 import { createAsset, updateAssetDetails } from "@/server/seller";
 import { JURISDICTIONS, LicenseType, type Asset } from "@/types";
@@ -33,6 +35,8 @@ interface AssetFormProps {
 export function AssetForm({ asset }: AssetFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const t = useT();
+  const localizedHref = useLocaleHref();
   const [isPending, startTransition] = useTransition();
 
   const [title, setTitle] = useState(asset?.title ?? "");
@@ -75,28 +79,31 @@ export function AssetForm({ asset }: AssetFormProps) {
         : await createAsset({ intent, ...payload });
 
       if (!result.ok) {
-        setError(result.error ?? "Could not save the listing.");
+        setError(result.error ?? t("seller.form.error.save"));
         toast({
-          title: "Not saved",
-          description: result.error ?? "Check the fields and try again.",
+          title: t("seller.form.error.title"),
+          description: result.error ?? t("seller.form.error.fallback"),
           variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: intent === "publish" ? "Listing published" : "Listing saved",
+        title:
+          intent === "publish"
+            ? t("seller.form.toast.published")
+            : t("seller.form.toast.saved"),
         description:
           intent === "publish"
-            ? "It is now visible on the public marketplace."
-            : "Saved as a draft — not visible publicly.",
+            ? t("seller.form.toast.publishedDescription")
+            : t("seller.form.toast.savedDescription"),
       });
 
       if (result.redirectTo) {
         /* Fired before navigating: the toast reducer lives in a module-level
            store, so it survives the client-side route change. Returning first
            meant creating a listing was the one mutation with no confirmation. */
-        router.push(result.redirectTo);
+        router.push(localizedHref(result.redirectTo));
         router.refresh();
         return;
       }
@@ -106,7 +113,9 @@ export function AssetForm({ asset }: AssetFormProps) {
   }
 
   const isPublished = asset?.status === "PUBLISHED";
-  const draftLabel = isPublished ? "Save & unpublish" : "Save as draft";
+  const draftLabel = isPublished
+    ? t("seller.form.saveUnpublish")
+    : t("seller.form.saveAsDraft");
 
   return (
     <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-6">
@@ -122,7 +131,7 @@ export function AssetForm({ asset }: AssetFormProps) {
       <Card className="bg-surface">
         <CardContent className="flex flex-col gap-6 pt-6">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title">{t("seller.form.titleLabel")}</Label>
             <Input
               id="title"
               name="title"
@@ -131,13 +140,13 @@ export function AssetForm({ asset }: AssetFormProps) {
               maxLength={120}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Nordic Pay EMI"
+              placeholder={t("seller.form.titlePlaceholder")}
             />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label id="license-label">License type</Label>
+              <Label id="license-label">{t("seller.form.licenseLabel")}</Label>
               <Select value={licenseType} onValueChange={setLicenseType}>
                 <SelectTrigger aria-labelledby="license-label">
                   <SelectValue />
@@ -145,7 +154,7 @@ export function AssetForm({ asset }: AssetFormProps) {
                 <SelectContent>
                   {LICENSE_OPTIONS.map((option) => (
                     <SelectItem key={option} value={option}>
-                      {option}
+                      {t(LICENSE_KEYS[option])}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -153,7 +162,9 @@ export function AssetForm({ asset }: AssetFormProps) {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label id="jurisdiction-label">Jurisdiction</Label>
+              <Label id="jurisdiction-label">
+                {t("seller.form.jurisdictionLabel")}
+              </Label>
               <Select value={jurisdiction} onValueChange={setJurisdiction}>
                 <SelectTrigger aria-labelledby="jurisdiction-label">
                   <SelectValue />
@@ -171,7 +182,7 @@ export function AssetForm({ asset }: AssetFormProps) {
 
           <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="price">Price (optional)</Label>
+              <Label htmlFor="price">{t("seller.form.priceLabel")}</Label>
               <Input
                 id="price"
                 name="price"
@@ -181,11 +192,13 @@ export function AssetForm({ asset }: AssetFormProps) {
                 step={1000}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                placeholder="Leave empty for price on request"
+                placeholder={t("seller.form.pricePlaceholder")}
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label id="currency-label">Currency</Label>
+              <Label id="currency-label">
+                {t("seller.form.currencyLabel")}
+              </Label>
               <Select value={currency} onValueChange={setCurrency}>
                 <SelectTrigger aria-labelledby="currency-label">
                   <SelectValue />
@@ -203,7 +216,7 @@ export function AssetForm({ asset }: AssetFormProps) {
 
           <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t("common.description")}</Label>
               <span
                 className={`text-xs tabular-nums ${
                   descriptionTooShort
@@ -211,7 +224,10 @@ export function AssetForm({ asset }: AssetFormProps) {
                     : "text-muted-foreground"
                 }`}
               >
-                {description.trim().length} / min {DESCRIPTION_MIN}
+                {t("seller.form.counter", {
+                  count: description.trim().length,
+                  min: DESCRIPTION_MIN,
+                })}
               </span>
             </div>
             <Textarea
@@ -223,12 +239,11 @@ export function AssetForm({ asset }: AssetFormProps) {
               maxLength={2000}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Licensed electronic money institution with 40k active accounts, full EEA passporting, profitable since 2021…"
+              placeholder={t("seller.form.descriptionPlaceholder")}
             />
             {descriptionTooShort && (
               <p className="text-xs text-destructive">
-                Describe the licence, traction and financials — at least{" "}
-                {DESCRIPTION_MIN} characters.
+                {t("seller.form.descriptionTooShort", { min: DESCRIPTION_MIN })}
               </p>
             )}
           </div>
@@ -242,7 +257,11 @@ export function AssetForm({ asset }: AssetFormProps) {
           value="publish"
           disabled={isPending}
         >
-          {isPending ? "Saving…" : asset ? "Save & publish" : "Publish"}
+          {isPending
+            ? t("seller.form.saving")
+            : asset
+              ? t("seller.form.savePublish")
+              : t("seller.form.publish")}
         </Button>
         <Button
           type="submit"
@@ -255,8 +274,8 @@ export function AssetForm({ asset }: AssetFormProps) {
         </Button>
         <p className="text-xs text-muted-foreground">
           {isPublished
-            ? "This listing is live on /assets — unpublishing removes it there."
-            : "Drafts stay private to you until you publish."}
+            ? t("seller.form.publishedHint")
+            : t("seller.form.draftHint")}
         </p>
       </div>
     </form>

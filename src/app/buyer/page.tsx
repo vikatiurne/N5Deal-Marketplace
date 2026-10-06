@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { SearchX, Send } from "lucide-react";
 
@@ -15,10 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { intlLocale, localizePath, type Locale } from "@/i18n/config";
+import { LICENSE_KEYS, type TFunction } from "@/i18n/core";
+import { getLocale, getT } from "@/i18n/server";
 import {
   buildMatchCriteria,
   computeProfileCompleteness,
-  describeCriteria,
+  type MatchCriteria,
 } from "@/lib/buyer/matching";
 import { requireRole } from "@/lib/auth/guards";
 import { listAssets } from "@/lib/db/repositories/assets";
@@ -26,14 +28,58 @@ import { findBuyerProfile } from "@/lib/db/repositories/buyers";
 import { countInquiriesByBuyer } from "@/lib/db/repositories/inquiries";
 import { findUserById } from "@/lib/db/repositories/users";
 
-export const metadata: Metadata = {
-  title: "Buyer workspace",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return {
+    title: t("buyer.dashboard.meta.title"),
+  };
+}
 
 const MATCH_LIMIT = 5;
 
+function describeMatchedCriteria(
+  t: TFunction,
+  criteria: MatchCriteria,
+  locale: Locale,
+): string[] {
+  const parts: string[] = [];
+  if (criteria.jurisdiction?.length) {
+    parts.push(
+      t("buyer.criteria.jurisdiction", {
+        codes: criteria.jurisdiction.join(", "),
+      }),
+    );
+  }
+  if (criteria.licenseType?.length) {
+    parts.push(
+      t("buyer.criteria.license", {
+        types: criteria.licenseType
+          .map((license) => t(LICENSE_KEYS[license]))
+          .join(", "),
+      }),
+    );
+  }
+  if (criteria.priceMin != null) {
+    parts.push(
+      t("buyer.criteria.from", {
+        amount: criteria.priceMin.toLocaleString(intlLocale(locale)),
+      }),
+    );
+  }
+  if (criteria.priceMax != null) {
+    parts.push(
+      t("buyer.criteria.upTo", {
+        amount: criteria.priceMax.toLocaleString(intlLocale(locale)),
+      }),
+    );
+  }
+  return parts;
+}
+
 export default async function BuyerHomePage() {
   const user = await requireRole("BUYER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
+  const href = (path: string) => localizePath(locale, path);
 
   const [account, profile, inquiryCount] = await Promise.all([
     findUserById(user.id),
@@ -47,7 +93,7 @@ export default async function BuyerHomePage() {
   });
 
   const criteria = buildMatchCriteria(profile);
-  const criteriaLabels = describeCriteria(criteria);
+  const criteriaLabels = describeMatchedCriteria(t, criteria, locale);
 
   const { items: matchedAssets } = await listAssets({
     status: "PUBLISHED",
@@ -61,7 +107,7 @@ export default async function BuyerHomePage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">
-          Buyer workspace
+          {t("buyer.dashboard.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
           {account?.displayName ?? user.email}
@@ -69,14 +115,19 @@ export default async function BuyerHomePage() {
         </p>
       </div>
 
-      <section aria-label="Overview" className="grid gap-4 md:grid-cols-2">
+      <section
+        aria-label={t("buyer.dashboard.overviewLabel")}
+        className="grid gap-4 md:grid-cols-2"
+      >
         <ProfileCompletenessCard completeness={completeness} />
 
         <Card className="flex h-full flex-col bg-surface">
           <CardHeader>
-            <CardTitle className="text-base">Inquiries sent</CardTitle>
+            <CardTitle className="text-base">
+              {t("buyer.dashboard.inquiries.title")}
+            </CardTitle>
             <CardDescription>
-              Contact requests you sent to sellers.
+              {t("buyer.dashboard.inquiries.description")}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 items-center gap-3">
@@ -89,26 +140,33 @@ export default async function BuyerHomePage() {
           </CardContent>
           <CardFooter>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/buyer/inquiries">View inquiries</Link>
+              <Link href={href("/buyer/inquiries")}>
+                {t("buyer.dashboard.inquiries.view")}
+              </Link>
             </Button>
           </CardFooter>
         </Card>
       </section>
 
-      <section aria-label="Matched assets" className="flex flex-col gap-4">
+      <section
+        aria-label={t("buyer.dashboard.matchedLabel")}
+        className="flex flex-col gap-4"
+      >
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold tracking-tight">
-              Matched for you
+              {t("buyer.dashboard.matched.title")}
             </h2>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/assets">Browse all assets</Link>
+              <Link href={href("/assets")}>
+                {t("buyer.dashboard.matched.browse")}
+              </Link>
             </Button>
           </div>
 
           {criteriaLabels.length > 0 ? (
             <p className="text-sm text-muted-foreground">
-              Matched on{" "}
+              {t("buyer.dashboard.matchedOn")}{" "}
               {criteriaLabels.map((label, index) => (
                 <span key={label}>
                   {index > 0 ? ", " : ""}
@@ -119,8 +177,7 @@ export default async function BuyerHomePage() {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Add jurisdictions, license types and a budget to your profile to
-              get matched listings here.
+              {t("buyer.dashboard.matched.hint")}
             </p>
           )}
         </div>
@@ -128,15 +185,19 @@ export default async function BuyerHomePage() {
         {matchedAssets.length === 0 ? (
           <EmptyState
             icon={SearchX}
-            title="No published assets match yet"
-            description="Widen your budget or jurisdictions, or send an inquiry to a seller from the marketplace."
+            title={t("buyer.dashboard.empty.title")}
+            description={t("buyer.dashboard.empty.description")}
             action={
               <>
                 <Button variant="outline" asChild>
-                  <Link href="/buyer/profile">Adjust interests</Link>
+                  <Link href={href("/buyer/profile")}>
+                    {t("buyer.dashboard.empty.adjust")}
+                  </Link>
                 </Button>
                 <Button asChild>
-                  <Link href="/assets">Browse all assets</Link>
+                  <Link href={href("/assets")}>
+                    {t("buyer.dashboard.empty.browse")}
+                  </Link>
                 </Button>
               </>
             }
@@ -151,9 +212,9 @@ export default async function BuyerHomePage() {
 
         {profile && (
           <p className="text-xs text-muted-foreground">
-            Showing up to {MATCH_LIMIT} of the newest published listings.{" "}
+            {t("buyer.dashboard.showing", { limit: MATCH_LIMIT })}{" "}
             <Badge variant="outline" className="text-muted-foreground">
-              license ∩ jurisdiction ∩ budget
+              {t("buyer.dashboard.formula")}
             </Badge>
           </p>
         )}

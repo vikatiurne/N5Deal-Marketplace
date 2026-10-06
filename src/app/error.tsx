@@ -3,6 +3,8 @@
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
+import { useLocaleHref, useT } from "@/i18n/client";
+
 /**
  * Route-level error boundary (task 09 §3).
  *
@@ -18,6 +20,8 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useT();
+  const href = useLocaleHref();
   return (
     <div
       role="alert"
@@ -31,11 +35,10 @@ export default function Error({
       </span>
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-semibold tracking-tight">
-          Something went wrong
+          {t("error.boundary.title")}
         </h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          This page failed to render. Try again — if it keeps failing, the error
-          is in the server log.
+          {t("error.boundary.description")}
         </p>
         {error.digest && (
           <p className="font-mono text-xs text-muted-foreground">
@@ -50,13 +53,13 @@ export default function Error({
           className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <RotateCcw className="size-4" aria-hidden="true" />
-          Try again
+          {t("error.boundary.retry")}
         </button>
         <Link
-          href="/assets"
+          href={href("/assets")}
           className="inline-flex h-9 items-center justify-center rounded-md border border-border px-4 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
         >
-          Back to listings
+          {t("error.boundary.backToListings")}
         </Link>
       </div>
     </div>

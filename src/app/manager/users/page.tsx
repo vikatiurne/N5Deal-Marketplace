@@ -1,9 +1,7 @@
-import type { Metadata } from "next";
-
 import { ManagerUserFilterBar } from "@/components/manager/ManagerUserFilterBar";
 import { EmptyState } from "@/components/EmptyState";
 import { Users } from "lucide-react";
-import { ROLE_LABELS, ROLE_STYLES } from "@/lib/badgeStyles";
+import { ROLE_STYLES } from "@/lib/badgeStyles";
 import { ManagerUserRowActions } from "@/components/manager/ManagerUserRowActions";
 import { ManagerUserStatusBadge } from "@/components/manager/ManagerUserStatusBadge";
 import { Pagination } from "@/components/assets/Pagination";
@@ -18,14 +16,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { localizePath } from "@/i18n/config";
+import { ROLE_KEYS } from "@/i18n/core";
+import { getLocale, getT } from "@/i18n/server";
 import { requireRole } from "@/lib/auth/guards";
 import { listUsers } from "@/lib/db/repositories/users";
 import { formatDate } from "@/lib/formatDate";
 import { managerUserFiltersSchema } from "@/lib/validation/manager";
 
-export const metadata: Metadata = {
-  title: "Members · Manager",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("manager.users.meta.title") };
+}
 
 const PAGE_SIZE = 20;
 
@@ -35,6 +37,7 @@ export default async function ManagerUsersPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireRole("MANAGER");
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
 
   const params = await searchParams;
   const parsed = managerUserFiltersSchema.safeParse(params);
@@ -48,10 +51,11 @@ export default async function ManagerUsersPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("manager.users.title")}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          {total} {total === 1 ? "account" : "accounts"} · suspend or
-          soft-delete non-compliant members. Every action is audited.
+          {t("manager.users.subtitle", { count: total })}
         </p>
       </div>
 
@@ -60,26 +64,30 @@ export default async function ManagerUsersPage({
       {items.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No members match these filters"
-          description="Clear the search text or widen the role and status filters."
-          actionHref="/manager/users"
-          actionLabel="Reset filters"
+          title={t("manager.users.emptyTitle")}
+          description={t("manager.users.emptyDescription")}
+          actionHref={localizePath(locale, "/manager/users")}
+          actionLabel={t("manager.filters.resetAll")}
         />
       ) : (
         <Card className="bg-surface">
           <CardContent className="pt-6">
             <Table>
               <TableCaption className="text-xs">
-                All platform users — actions are recorded in the audit log.
+                {t("manager.users.caption")}
               </TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead className="text-right">Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("common.role")}</TableHead>
+                  <TableHead>{t("common.status")}</TableHead>
+                  <TableHead>{t("common.email")}</TableHead>
+                  <TableHead>{t("manager.users.company")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("manager.users.joined")}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {t("common.actions")}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -87,7 +95,7 @@ export default async function ManagerUsersPage({
                   <TableRow key={u.id}>
                     <TableCell>
                       <Badge variant="outline" className={ROLE_STYLES[u.role]}>
-                        {ROLE_LABELS[u.role]}
+                        {t(ROLE_KEYS[u.role])}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -98,7 +106,7 @@ export default async function ManagerUsersPage({
                       {u.company ?? "—"}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground tabular-nums">
-                      {formatDate(u.createdAt)}
+                      {formatDate(u.createdAt, locale)}
                     </TableCell>
                     <TableCell>
                       <ManagerUserRowActions

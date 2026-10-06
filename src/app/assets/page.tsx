@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { AiInterpretationBanner } from "@/components/assets/AiInterpretationBanner";
@@ -8,13 +7,18 @@ import { FilterBar } from "@/components/assets/FilterBar";
 import { Pagination } from "@/components/assets/Pagination";
 import { SearchX } from "lucide-react";
 import { SmartSearchBar } from "@/components/assets/SmartSearchBar";
+import { localizePath } from "@/i18n/config";
+import { getLocale, getT } from "@/i18n/server";
 import { listAssets } from "@/lib/db/repositories/assets";
 import { assetFiltersSchema } from "@/lib/validation/assets";
 
-export const metadata: Metadata = {
-  title: "Browse assets",
-  description: "Browse licensed fintech companies for sale.",
-};
+export async function generateMetadata() {
+  const t = await getT();
+  return {
+    title: t("assets.meta.title"),
+    description: t("assets.meta.description"),
+  };
+}
 
 const PAGE_SIZE = 12;
 
@@ -26,6 +30,7 @@ export default async function AssetsPage({
   searchParams: Promise<RawParams>;
 }) {
   const raw = await searchParams;
+  const [locale, t] = await Promise.all([getLocale(), getT()]);
 
   // Invalid values fall back to defaults — filters never crash the page.
   const parsed = assetFiltersSchema.safeParse(raw);
@@ -55,7 +60,11 @@ export default async function AssetsPage({
     if (totalPages === 1) params.delete("page");
     else params.set("page", String(totalPages));
     const query = params.toString();
-    redirect(query ? `/assets?${query}` : "/assets");
+    redirect(
+      query
+        ? localizePath(locale, `/assets?${query}`)
+        : localizePath(locale, "/assets"),
+    );
   }
 
   const page = filters.page;
@@ -63,11 +72,13 @@ export default async function AssetsPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Browse assets</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t("assets.heading")}
+        </h1>
         <p className="text-sm text-muted-foreground">
           {total === 0
-            ? "No published assets"
-            : `${total} published ${total === 1 ? "asset" : "assets"}`}
+            ? t("assets.count.none")
+            : t("assets.count", { count: total })}
         </p>
       </div>
 
@@ -80,15 +91,15 @@ export default async function AssetsPage({
       {items.length === 0 ? (
         <EmptyState
           icon={SearchX}
-          title="No assets match your filters"
-          description="Try widening the price range, removing a license type, or clearing the search text."
-          actionHref="/assets"
-          actionLabel="Reset filters"
+          title={t("assets.empty.title")}
+          description={t("assets.empty.description")}
+          actionHref={localizePath(locale, "/assets")}
+          actionLabel={t("assets.empty.reset")}
         />
       ) : (
         <>
           <div
-            aria-label="Asset listings"
+            aria-label={t("assets.gridLabel")}
             className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
           >
             {items.map((asset) => (

@@ -8,21 +8,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/auth/PasswordInput";
+import { useLocaleHref, useT } from "@/i18n/client";
+import type { MessageKey } from "@/i18n/core";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types";
 
 const ROLE_OPTIONS: Array<{
   value: Extract<Role, "BUYER" | "SELLER">;
-  label: string;
-  hint: string;
+  labelKey: MessageKey;
+  hintKey: MessageKey;
 }> = [
   {
     value: "BUYER",
-    label: "Buyer",
-    hint: "I'm looking to acquire fintech assets",
+    labelKey: "common.role.buyer",
+    hintKey: "auth.register.roleBuyerHint",
   },
-  { value: "SELLER", label: "Seller", hint: "I want to list assets for sale" },
+  {
+    value: "SELLER",
+    labelKey: "common.role.seller",
+    hintKey: "auth.register.roleSellerHint",
+  },
 ];
 
 export function RegisterForm() {
@@ -34,6 +40,8 @@ export function RegisterForm() {
   const [role, setRole] = useState<Extract<Role, "BUYER" | "SELLER">>("BUYER");
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const t = useT();
+  const localizedHref = useLocaleHref();
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -46,16 +54,19 @@ export function RegisterForm() {
         role,
       });
       if (!result.ok) {
-        const message = result.error ?? "Registration failed.";
+        const message =
+          result.error === "email_taken"
+            ? t("auth.register.emailTaken")
+            : (result.error ?? "Registration failed.");
         setError(message);
         toast({
-          title: "Could not create the account",
+          title: t("auth.register.toast.failedTitle"),
           description: message,
           variant: "destructive",
         });
         return;
       }
-      router.push(result.redirectTo ?? "/");
+      router.push(localizedHref(result.redirectTo ?? "/"));
       router.refresh();
     });
   }
@@ -72,7 +83,7 @@ export function RegisterForm() {
       )}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="displayName">Display name</Label>
+        <Label htmlFor="displayName">{t("auth.field.displayName")}</Label>
         <Input
           id="displayName"
           name="displayName"
@@ -87,7 +98,7 @@ export function RegisterForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="reg-email">Email</Label>
+        <Label htmlFor="reg-email">{t("common.email")}</Label>
         <Input
           id="reg-email"
           name="email"
@@ -101,7 +112,7 @@ export function RegisterForm() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="reg-password">Password</Label>
+        <Label htmlFor="reg-password">{t("auth.field.password")}</Label>
         <PasswordInput
           id="reg-password"
           name="password"
@@ -110,12 +121,14 @@ export function RegisterForm() {
           minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="At least 8 characters"
+          placeholder={t("auth.register.passwordPlaceholder")}
         />
       </div>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium mb-2">I am a</legend>
+        <legend className="text-sm font-medium mb-2">
+          {t("auth.register.roleLegend")}
+        </legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {ROLE_OPTIONS.map((option) => (
             <label
@@ -135,9 +148,9 @@ export function RegisterForm() {
                 onChange={() => setRole(option.value)}
                 className="sr-only"
               />
-              <span className="text-sm font-medium">{option.label}</span>
+              <span className="text-sm font-medium">{t(option.labelKey)}</span>
               <span className="text-xs text-muted-foreground">
-                {option.hint}
+                {t(option.hintKey)}
               </span>
             </label>
           ))}
@@ -145,7 +158,7 @@ export function RegisterForm() {
       </fieldset>
 
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Creating account…" : "Create account"}
+        {isPending ? t("auth.register.submitPending") : t("home.createAccount")}
       </Button>
     </form>
   );

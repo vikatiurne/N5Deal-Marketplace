@@ -5,15 +5,17 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Skeleton, SkeletonRegion } from "@/components/ui/skeleton";
+import { getT } from "@/i18n/server";
 
 /**
  * Skeleton for `/seller`. Mirrors the real page: heading with a trailing
  * "New asset" button, two stat cards, then the latest-inquiries list.
  */
-export default function SellerLoading() {
+export default async function SellerLoading() {
+  const t = await getT();
   return (
     <SkeletonRegion
-      label="Loading seller dashboard"
+      label={t("seller.loading.dashboard")}
       className="flex flex-col gap-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">

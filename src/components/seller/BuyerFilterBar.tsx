@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocaleHref, useT } from "@/i18n/client";
+import { LICENSE_KEYS } from "@/i18n/core";
 import { JURISDICTIONS, LicenseType } from "@/types";
 
 const LICENSE_OPTIONS = Object.values(LicenseType);
@@ -20,6 +22,8 @@ export function BuyerFilterBar() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const t = useT();
+  const localizedHref = useLocaleHref();
   const queryKey = params.toString();
 
   const selectedJurisdictions = params.getAll("jurisdiction");
@@ -63,17 +67,19 @@ export function BuyerFilterBar() {
           className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto]"
         >
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="buyer-q">Search</Label>
+            <Label htmlFor="buyer-q">{t("common.search")}</Label>
             <Input
               id="buyer-q"
               name="q"
               type="search"
-              placeholder="Company, name or description…"
+              placeholder={t("seller.filter.searchPlaceholder")}
               defaultValue={params.get("q") ?? ""}
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="buyer-budgetMin">Budget from (EUR)</Label>
+            <Label htmlFor="buyer-budgetMin">
+              {t("seller.filter.budgetFrom")}
+            </Label>
             <Input
               id="buyer-budgetMin"
               name="budgetMin"
@@ -87,7 +93,9 @@ export function BuyerFilterBar() {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="buyer-budgetMax">Budget up to (EUR)</Label>
+            <Label htmlFor="buyer-budgetMax">
+              {t("seller.filter.budgetTo")}
+            </Label>
             <Input
               id="buyer-budgetMax"
               name="budgetMax"
@@ -101,10 +109,12 @@ export function BuyerFilterBar() {
             />
           </div>
           <div className="flex items-end gap-2">
-            <Button type="submit">Apply</Button>
+            <Button type="submit">{t("seller.filter.apply")}</Button>
             {queryKey.length > 0 && (
               <Button type="button" variant="outline" asChild>
-                <Link href={pathname}>Reset</Link>
+                <Link href={localizedHref(pathname)}>
+                  {t("seller.filter.reset")}
+                </Link>
               </Button>
             )}
           </div>
@@ -112,7 +122,9 @@ export function BuyerFilterBar() {
 
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">Jurisdiction</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t("seller.filter.jurisdiction")}
+            </legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {JURISDICTIONS.map((code) => (
                 <label
@@ -130,7 +142,9 @@ export function BuyerFilterBar() {
           </fieldset>
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-medium">License type</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {t("seller.filter.licenseType")}
+            </legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {LICENSE_OPTIONS.map((option) => (
                 <label
@@ -141,7 +155,7 @@ export function BuyerFilterBar() {
                     checked={selectedLicenses.includes(option)}
                     onCheckedChange={() => toggle(option, "licenseType")}
                   />
-                  {option}
+                  {t(LICENSE_KEYS[option])}
                 </label>
               ))}
             </div>

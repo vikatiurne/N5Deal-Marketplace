@@ -1,11 +1,18 @@
 import { Badge } from "@/components/ui/badge";
-import { USER_STATUS_LABELS, USER_STATUS_STYLES } from "@/lib/badgeStyles";
+import { USER_STATUS_KEYS } from "@/i18n/core";
+import { getT } from "@/i18n/server";
+import { USER_STATUS_STYLES } from "@/lib/badgeStyles";
 import type { UserStatus } from "@/types";
 
-export function ManagerUserStatusBadge({ status }: { status: UserStatus }) {
+export async function ManagerUserStatusBadge({
+  status,
+}: {
+  status: UserStatus;
+}) {
+  const t = await getT();
   return (
     <Badge variant="outline" className={USER_STATUS_STYLES[status]}>
-      {USER_STATUS_LABELS[status]}
+      {t(USER_STATUS_KEYS[status])}
     </Badge>
   );
 }
