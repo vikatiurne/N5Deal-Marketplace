@@ -397,6 +397,89 @@ the status is never committed) — the 404 screen itself is fully functional.
 
 ---
 
+## Internationalization (en + uk)
+
+The interface ships in English and Ukrainian; the whole UI switches, including
+server-rendered pages, metadata titles, toasts, validation messages, dates and
+money. The layer is ~10 small files in `src/i18n/` with **zero new runtime
+dependencies** — the spec forbids adding libraries without justification, and
+everything this app needs (a key-value lookup, `Intl` plurals, URL prefixes) is
+already in the platform.
+
+### 16. URL prefix, not a route segment
+
+- **English is the default and has no prefix** — every pre-existing URL
+  (README, demo script, shared links) keeps working unchanged.
+- **Ukrainian lives under `/uk/…`**: `src/middleware.ts` rewrites
+  `/uk/(.*)` → the internal path and sets `x-locale: uk`. There is no
+  `app/[locale]/` tree — relocating every route, link and guard for two locales
+  would touch the whole tree for zero product value.
+- `/en/…` answers `307` to the canonical unprefixed path, so there is exactly
+  one URL per resource per locale (no duplicate-content pairs).
+- The prefix is one constant (`UK_PREFIX` in `src/i18n/config.ts`); switching
+  to `/ua` is a one-line change. The locale tag for `Intl`/`lang` stays the
+  correct ISO `uk`.
+
+### 17. Reading the locale, server and client
+
+| Context                 | How                                                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Server components       | `await getT()` / `getLocale()` — reads the `x-locale` request header                                             |
+| Server actions          | same (`localizeError`, `localizePath` after a mutation redirect)                                                 |
+| Client components       | `<I18nProvider>` in the root layout → `useT()`, `useLocaleHref()`                                                |
+| Links and `router.push` | `localizePath(locale, path)` (server) / `useLocaleHref()` (client) — never raw paths; `/api/*` is never prefixed |
+
+The language switcher (`LanguageSwitcher.tsx`) performs a **full page load**
+of the current pathname plus the preserved query string, so filters and
+pagination survive an EN↔UA switch. It is a full load on purpose: the locale
+reaches client components through `I18nProvider` in the root layout, and
+Next.js does not re-render the root layout on soft navigation — a
+`router.push` would update page content while the provider and the
+server-rendered header stayed on the old locale, making the next click a no-op.
+After login, the middleware puts the _original_ browser path (with the
+`/uk` prefix) into `?next=`, so the post-login redirect returns to the
+Ukrainian page the user came from.
+
+### 18. Dictionaries
+
+- `src/i18n/messages/parts/` — one module per zone (common, catalog, auth,
+  buyer, seller, manager); `en.ts` aggregates them and is the **source of
+  truth**: `MessageKey = keyof typeof en`, so a typo'd key is a compile error.
+- `uk.ts` is typed `Record<MessageKey, string> & Record<string, string>`:
+  the first half enforces full coverage, the second allows zone-specific
+  plural keys (`key_one` / `key_few` / `key_many`) resolved through
+  `Intl.PluralRules("uk")` when a message is called with `{count}`.
+- Lookup falls back en → key, so a missing Ukrainian string degrades to
+  English instead of rendering `undefined`.
+- **Zod messages stay English in `lib/validation`** — 127 existing tests assert
+  those exact strings. Server actions translate what the user can see through
+  `localizeError(message)` (an EN→uk map in `messages/uk-errors.ts`); anything
+  unmapped — a rare Zod default or a future message someone forgets to add —
+  falls back to English rather than failing.
+
+### 19. Locale-aware formatting
+
+`lib/formatDate.ts` and `lib/formatPrice.ts` take the locale explicitly and
+format through `Intl` with `intlLocale()` (`en-IE` → `06 Oct 2025 / €1,500,000`,
+`uk-UA` → `06 жовт. 2025 / 1 500 000 EUR`). They are synchronous by design:
+passing `locale` keeps them usable inside `.map()` callbacks and makes them
+plain unit-testable functions — no `headers()` inside formatting helpers.
+
+### 20. What is deliberately _not_ translated
+
+- **Data, not interface:** asset titles and descriptions, display names,
+  companies, e-mail addresses, jurisdiction codes (`LT`), audit `meta` labels.
+- **`global-error.tsx` stays English:** it replaces the root layout itself, so
+  the i18n provider does not exist when it renders. Best-effort EN is the
+  correct degradation for a last-resort boundary.
+- **Browser-native HTML5 messages** (`required`, `type="email"`): the browser
+  renders them before our handlers run; their language follows the browser,
+  not the URL prefix.
+- **Unmapped Zod/error strings** fall back to English (§18) — a safety net,
+  not a target.
+
+---
+
 ## Testing (Task 10)
 
 ```
@@ -439,16 +522,17 @@ The tests caught two real bugs instead of merely confirming the implementation:
 
 ## Known limitations
 
-| #   | Limitation                                                                    | Why                                                        | What to do when it grows                                                  |
-| --- | ----------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 1   | SQLite: one file, no concurrent writes in production, `LIKE` over JSON arrays | The demo must start with zero infrastructure               | Move to Postgres: `text[]` + GIN/trgm, one migration script (below)       |
-| 2   | `%` and `_` in search act as LIKE metacharacters                              | SQLite does not escape them inside a bound parameter       | Raw query with `ESCAPE '\'` for public search; currently pinned by a test |
-| 3   | AI rate limit is an in-memory Map                                             | No Redis in the demo; resets on deploy and is per-instance | Upstash/Redis, key by userId                                              |
-| 4   | One message per `(asset, buyer)` per direction, no threads                    | Real conversations need their own model                    | `InquiryThread` + `InquiryMessage`, migrate along `initiatorRole`         |
-| 5   | `notFound()` returns HTTP 200 + `noindex` (streaming root layout)             | Next.js behaviour, not our code                            | Move 404 pages into a route group without the streaming layout            |
-| 6   | JSON-array filtering uses `LIKE` — slow and unindexed                         | 24 demo assets do not need an index                        | Postgres `text[]` + GIN, or join tables                                   |
-| 7   | No e-mail confirmation or password reset                                      | Credentials provider without mail                          | Resend/Postmark + verify-token on `User`                                  |
-| 8   | No file uploads (licence scans, diligence documents)                          | Files are outside the demo scope                           | S3-compatible storage + signed URLs                                       |
+| #   | Limitation                                                                                          | Why                                                                                               | What to do when it grows                                                  |
+| --- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | SQLite: one file, no concurrent writes in production, `LIKE` over JSON arrays                       | The demo must start with zero infrastructure                                                      | Move to Postgres: `text[]` + GIN/trgm, one migration script (below)       |
+| 2   | `%` and `_` in search act as LIKE metacharacters                                                    | SQLite does not escape them inside a bound parameter                                              | Raw query with `ESCAPE '\'` for public search; currently pinned by a test |
+| 3   | AI rate limit is an in-memory Map                                                                   | No Redis in the demo; resets on deploy and is per-instance                                        | Upstash/Redis, key by userId                                              |
+| 4   | One message per `(asset, buyer)` per direction, no threads                                          | Real conversations need their own model                                                           | `InquiryThread` + `InquiryMessage`, migrate along `initiatorRole`         |
+| 5   | `notFound()` returns HTTP 200 + `noindex` (streaming root layout)                                   | Next.js behaviour, not our code                                                                   | Move 404 pages into a route group without the streaming layout            |
+| 6   | JSON-array filtering uses `LIKE` — slow and unindexed                                               | 24 demo assets do not need an index                                                               | Postgres `text[]` + GIN, or join tables                                   |
+| 7   | No e-mail confirmation or password reset                                                            | Credentials provider without mail                                                                 | Resend/Postmark + verify-token on `User`                                  |
+| 8   | No file uploads (licence scans, diligence documents)                                                | Files are outside the demo scope                                                                  | S3-compatible storage + signed URLs                                       |
+| 9   | Ukrainian UI, but unmapped Zod strings, HTML5 browser messages and `global-error` render in English | Safety net over silent failures; browser-owned UI; last-resort boundary without the i18n provider | Add keys to `uk-errors.ts`; accept browser-local HTML5 text by design     |
 
 ## SQLite → Postgres: exact sequence
 

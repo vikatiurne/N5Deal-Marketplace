@@ -197,6 +197,15 @@ Deliberate deviations from a literal reading of the spec, all documented in
    resets on deploy, not shared between instances.
 8. **No e-mail verification, password reset, or file uploads** — outside the
    assignment scope, listed under known limitations.
+9. **Bilingual UI without an i18n library.** English stays the unprefixed
+   default, Ukrainian is served under `/uk/…` by a middleware rewrite (no
+   `app/[locale]` relocation), dictionaries are compile-checked against the
+   English source of truth, and `Intl` handles plurals, dates and money. Zod
+   messages are translated at the server-action boundary (`localizeError`),
+   so unmapped strings, browser-native HTML5 messages, database content and
+   the `global-error` fallback remain English — each of those is an explicit
+   safety net or an owner outside our code, documented in
+   [ARCHITECTURE § Internationalization](ARCHITECTURE.md#internationalization-en--uk).
 
 Not done, and I would not claim it: an automated E2E suite (Playwright). The
 CDP pass covered 17 routes × 2 viewports, role logins, console errors and
@@ -217,3 +226,5 @@ npm test
 Then follow `docs/DEMO.md` — a five-minute scripted walkthrough (guest → buyer →
 seller → manager → smart search), including the expected failure states.
 Design rationale and trade-offs: `docs/ARCHITECTURE.md`.
+To see the Ukrainian locale: click **UA** in the header, or open any route as
+`/uk/…` (e.g. `/uk/manager/audit` — dates and labels switch, data does not).

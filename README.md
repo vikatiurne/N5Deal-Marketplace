@@ -11,6 +11,11 @@ design and trade-off rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 **Live: https://minimarketplace-six.vercel.app** (Vercel + Neon Postgres,
 same seed as local).
 
+The interface is bilingual: **English (default, unprefixed URLs) and Ukrainian
+(`/uk/…`)** — switch with the EN/UA control in the header or open any route
+under `/uk/`. Full coverage and trade-offs:
+[ARCHITECTURE § Internationalization](docs/ARCHITECTURE.md#internationalization-en--uk).
+
 ## Quick start
 
 ```bash
@@ -51,28 +56,29 @@ pagination have something to page through.
 
 ## Feature map
 
-| Role    | Feature                                                                                       | Route                           | Where it lives                                                         |
-| ------- | --------------------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------- |
-| Guest   | Landing page with domain counts                                                               | `/`                             | `src/app/page.tsx`                                                     |
-| Guest   | Filterable catalogue: licence type, jurisdiction, price range, text, 3 sort modes, pagination | `/assets`                       | `components/assets/FilterBar.tsx`, `lib/db/repositories/assets.ts`     |
-| Guest   | Asset card with status/licence badges, seller name, price                                     | `/assets/[id]`                  | `toDomain`, `components/assets/AssetCard.tsx`                          |
-| Guest   | Natural-language smart search with explanation + degraded fallback                            | `/assets?ai=1&q=…`              | `src/lib/ai/smartSearch.ts`, `app/api/smart-search/route.ts`           |
-| Guest   | Auth pages with inline + toast validation errors                                              | `/login`, `/register`           | `src/server/auth.ts`, `lib/validation/auth.ts`                         |
-| Buyer   | Dashboard: profile completeness, criteria chips, listings matched to the profile              | `/buyer`                        | `listAssets` with the buyer's own criteria                             |
-| Buyer   | Interest profile: jurisdictions, licence types, budget, description                           | `/buyer/profile`                | `upsertBuyerProfile`, `buyerProfileSchema`                             |
-| Buyer   | Contact seller on an asset (blind — no seller contact data)                                   | `/assets/[id]`                  | `server/buyer.ts` → `createInquiry`, `initiatorRole = BUYER`           |
-| Buyer   | Read-only view of which sellers contacted them                                                | `/buyer/inquiries`              | `listInquiriesForBuyer` (seller messages land here)                    |
-| Seller  | Dashboard: status counts, unread inquiry badge, matched buyer profiles                        | `/seller`                       | `listSellerAssets`, `countIncomingInquiries`, `listBuyers`             |
-| Seller  | Create / edit assets with `draft` vs `publish` intent                                         | `/seller/assets/new`, `/…/edit` | `lib/validation/seller.ts`, `assetsRepo`                               |
-| Seller  | Status changes: publish, pause, reinstate                                                     | `/seller/assets`                | `setAssetStatus` + `assetStatusActionSchema`                           |
-| Seller  | Blind buyer search: name/company, jurisdictions, licences, budget                             | `/seller/buyers`                | `listBuyers`, `buyerSearchSchema`                                      |
-| Seller  | Contact buyer about one of your assets (`initiatorRole = SELLER`)                             | `/seller/buyers/[id]`           | `sendBuyerMessage`                                                     |
-| Seller  | Inquiry inbox with unread counters and mark-as-read                                           | `/seller/inquiries`             | `listIncomingInquiries`, `markInquiriesRead` via `markInquiriesAsRead` |
-| Manager | Moderation: suspend / reactivate / soft-delete users                                          | `/manager/users`                | `moderateUser`, `USER_AUDIT_ACTION`                                    |
-| Manager | Moderation: publish / pause / remove assets                                                   | `/manager/assets`               | `moderateAsset`, `ASSET_AUDIT_ACTION`                                  |
-| Manager | Append-only audit log with actor, target and JSON meta                                        | `/manager/audit`                | `AuditLog`, `createAuditLog`                                           |
-| Cross   | 404 / error / global-error boundaries, skeletons, empty states                                | `not-found.tsx`, `error.tsx`    | `src/components/ui/*`                                                  |
-| Cross   | Token-based dark theme, AA contrast, keyboard-scrollable tables, mobile Sheet nav             | layout, `globals.css`           | `lib/badgeStyles.ts`, `SiteHeader`, `components/ui/sheet`              |
+| Role    | Feature                                                                                                         | Route                           | Where it lives                                                         |
+| ------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------- |
+| Guest   | Landing page with domain counts                                                                                 | `/`                             | `src/app/page.tsx`                                                     |
+| Guest   | Filterable catalogue: licence type, jurisdiction, price range, text, 3 sort modes, pagination                   | `/assets`                       | `components/assets/FilterBar.tsx`, `lib/db/repositories/assets.ts`     |
+| Guest   | Asset card with status/licence badges, seller name, price                                                       | `/assets/[id]`                  | `toDomain`, `components/assets/AssetCard.tsx`                          |
+| Guest   | Natural-language smart search with explanation + degraded fallback                                              | `/assets?ai=1&q=…`              | `src/lib/ai/smartSearch.ts`, `app/api/smart-search/route.ts`           |
+| Guest   | Auth pages with inline + toast validation errors                                                                | `/login`, `/register`           | `src/server/auth.ts`, `lib/validation/auth.ts`                         |
+| Buyer   | Dashboard: profile completeness, criteria chips, listings matched to the profile                                | `/buyer`                        | `listAssets` with the buyer's own criteria                             |
+| Buyer   | Interest profile: jurisdictions, licence types, budget, description                                             | `/buyer/profile`                | `upsertBuyerProfile`, `buyerProfileSchema`                             |
+| Buyer   | Contact seller on an asset (blind — no seller contact data)                                                     | `/assets/[id]`                  | `server/buyer.ts` → `createInquiry`, `initiatorRole = BUYER`           |
+| Buyer   | Read-only view of which sellers contacted them                                                                  | `/buyer/inquiries`              | `listInquiriesForBuyer` (seller messages land here)                    |
+| Seller  | Dashboard: status counts, unread inquiry badge, matched buyer profiles                                          | `/seller`                       | `listSellerAssets`, `countIncomingInquiries`, `listBuyers`             |
+| Seller  | Create / edit assets with `draft` vs `publish` intent                                                           | `/seller/assets/new`, `/…/edit` | `lib/validation/seller.ts`, `assetsRepo`                               |
+| Seller  | Status changes: publish, pause, reinstate                                                                       | `/seller/assets`                | `setAssetStatus` + `assetStatusActionSchema`                           |
+| Seller  | Blind buyer search: name/company, jurisdictions, licences, budget                                               | `/seller/buyers`                | `listBuyers`, `buyerSearchSchema`                                      |
+| Seller  | Contact buyer about one of your assets (`initiatorRole = SELLER`)                                               | `/seller/buyers/[id]`           | `sendBuyerMessage`                                                     |
+| Seller  | Inquiry inbox with unread counters and mark-as-read                                                             | `/seller/inquiries`             | `listIncomingInquiries`, `markInquiriesRead` via `markInquiriesAsRead` |
+| Manager | Moderation: suspend / reactivate / soft-delete users                                                            | `/manager/users`                | `moderateUser`, `USER_AUDIT_ACTION`                                    |
+| Manager | Moderation: publish / pause / remove assets                                                                     | `/manager/assets`               | `moderateAsset`, `ASSET_AUDIT_ACTION`                                  |
+| Manager | Append-only audit log with actor, target and JSON meta                                                          | `/manager/audit`                | `AuditLog`, `createAuditLog`                                           |
+| Cross   | 404 / error / global-error boundaries, skeletons, empty states                                                  | `not-found.tsx`, `error.tsx`    | `src/components/ui/*`                                                  |
+| Cross   | Token-based dark theme, AA contrast, keyboard-scrollable tables, mobile Sheet nav                               | layout, `globals.css`           | `lib/badgeStyles.ts`, `SiteHeader`, `components/ui/sheet`              |
+| Cross   | Bilingual UI: EN default + Ukrainian under `/uk/…`, dictionary type-checked, localized errors, dates and prices | every route                     | `src/i18n/`, `src/middleware.ts`, `LanguageSwitcher`                   |
 
 ## Requirements checklist (vs `docs/tasks/`)
 
@@ -201,3 +207,6 @@ test/                      globalSetup.ts — test-database bootstrap
 - One inquiry per `(asset, buyer)` per direction — no threaded replies.
 - `%` and `_` in catalogue search act as LIKE wildcards (documented and pinned by a test).
 - No e-mail confirmation, password reset, or file uploads.
+- Ukrainian covers the interface; database content, browser-native HTML5
+  messages, unmapped Zod strings and the `global-error` fallback stay in
+  English ([ARCHITECTURE §20](docs/ARCHITECTURE.md#20-what-is-deliberately-not-translated)).

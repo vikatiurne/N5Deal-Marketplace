@@ -21,6 +21,12 @@ npm run dev   # http://localhost:3000
 Landing page: five licence domains, four numbers (listings, buyers, sellers,
 inquries), two entry points — **Browse assets** and **Create account**.
 
+**Language (10 s):** the header switch **EN | UA** flips the whole interface.
+The Ukrainian build lives under `/uk/…` — try `/uk/assets`; switching back
+keeps the page and its filters (the query string is preserved). Data (listing
+titles, names, e-mails) stays as seeded in both locales — that split is by
+design, see [ARCHITECTURE §20](ARCHITECTURE.md#20-what-is-deliberately-not-translated).
+
 ---
 
 ## 1. Guest: catalogue and smart search (60 s)
@@ -127,14 +133,15 @@ Sign in as `manager@n5deal.test`.
 
 ## Recovery and re-runs
 
-| Sympt                          | Fix                                                                    |
-| ------------------------------ | ---------------------------------------------------------------------- |
-| Login says `account_suspended` | Use another demo account, or reactivate the user in `/manager/users`   |
-| No listings match a filter     | **Reset filters** on `/assets`; suspended/removed sellers drop out     |
-| Second inquiry rejected        | Expected — one message per `(asset, buyer, direction)`                 |
-| "Audit log is empty"           | Seed does not moderate anything; make a manager action first           |
-| AI toast instead of filters    | `OPENAI_API_KEY` not set — keyword search fallback is intentional      |
-| Want a clean dataset           | `npm run db:seed` is idempotent; `npm run db:reset` drops and re-seeds |
+| Sympt                             | Fix                                                                    |
+| --------------------------------- | ---------------------------------------------------------------------- |
+| Login says `account_suspended`    | Use another demo account, or reactivate the user in `/manager/users`   |
+| No listings match a filter        | **Reset filters** on `/assets`; suspended/removed sellers drop out     |
+| Second inquiry rejected           | Expected — one message per `(asset, buyer, direction)`                 |
+| "Audit log is empty"              | Seed does not moderate anything; make a manager action first           |
+| AI toast instead of filters       | `OPENAI_API_KEY` not set — keyword search fallback is intentional      |
+| Some strings are English on `/uk` | Expected for data and the documented edge cases (§20 of ARCHITECTURE)  |
+| Want a clean dataset              | `npm run db:seed` is idempotent; `npm run db:reset` drops and re-seeds |
 
 Cross-references: [`../README.md`](../README.md) for setup, accounts and the
 feature map; [`ARCHITECTURE.md`](ARCHITECTURE.md) for why each of these flows is
