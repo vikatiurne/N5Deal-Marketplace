@@ -18,9 +18,16 @@ export async function middleware(req: NextRequest) {
   );
   if (!match) return NextResponse.next();
 
+  // On HTTPS Auth.js prefixes the cookie with `__Secure-`, and getToken
+  // derives its decryption salt from the cookie name — without this flag it
+  // looks for the unprefixed name and every live session reads as anonymous.
+  const isHttps =
+    req.headers.get("x-forwarded-proto") === "https" ||
+    req.nextUrl.protocol === "https:";
   const token = await getToken({
     req,
     secret: process.env.AUTH_SECRET ?? "",
+    secureCookie: isHttps,
   });
 
   // Make the current pathname available to guards via headers().
