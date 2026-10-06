@@ -82,12 +82,12 @@ export default async function Home() {
         className="grid gap-4 sm:grid-cols-3"
       >
         {ROLES.map((role) => (
-          <Card key={role.title} className="bg-surface">
+          <Card key={role.title} className="flex h-full flex-col bg-surface">
             <CardHeader>
               <CardTitle className="text-lg">{t(role.title)}</CardTitle>
               <CardDescription>{t(role.description)}</CardDescription>
             </CardHeader>
-            <div className="px-6 pb-6">
+            <div className="mt-auto px-6 pb-6">
               <Link
                 href={href(role.href)}
                 className="text-sm font-medium text-primary hover:underline hover:underline-offset-4"

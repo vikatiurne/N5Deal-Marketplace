@@ -28,12 +28,12 @@ export default async function SellerLoading() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {Array.from({ length: 2 }, (_, i) => (
-          <Card key={i} className="bg-surface">
+          <Card key={i} className="flex h-full flex-col bg-surface">
             <CardHeader>
               <Skeleton className="h-5 w-40" />
               <Skeleton className="h-4 w-52" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1">
               <Skeleton className="h-10 w-20" />
             </CardContent>
             <CardFooter>

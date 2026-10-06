@@ -71,7 +71,7 @@ export default async function SellerHomePage() {
         aria-label={t("seller.dashboard.byStatusAria")}
         className="grid gap-4 sm:grid-cols-2"
       >
-        <Card className="bg-surface">
+        <Card className="flex h-full flex-col bg-surface">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <BriefcaseBusiness
@@ -84,7 +84,7 @@ export default async function SellerHomePage() {
               {t("seller.dashboard.listingsDescription")}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             <ul className="flex flex-col gap-2">
               {statuses.map((status) => (
                 <li
@@ -108,7 +108,7 @@ export default async function SellerHomePage() {
           </CardFooter>
         </Card>
 
-        <Card className="bg-surface">
+        <Card className="flex h-full flex-col bg-surface">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Inbox
@@ -121,7 +121,7 @@ export default async function SellerHomePage() {
               {t("seller.dashboard.inquiriesDescription")}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex items-end gap-3">
+          <CardContent className="flex flex-1 items-end gap-3">
             <span className="text-4xl font-semibold tabular-nums">
               {totalInquiries}
             </span>
