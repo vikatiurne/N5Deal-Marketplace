@@ -473,9 +473,10 @@ because the domain layer does not know it is running on SQLite:
    or nullable `targetUserId` / `targetAssetId` with a `CHECK` constraint.
 6. Tests: keep `file:` on a laptop (fast), or run a `postgres` service in CI for
    honest coverage of `array_contains`.
-7. Deploy: `vercel-build` = `prisma generate && prisma migrate deploy && next
-build`, with `DATABASE_URL` (pooled) and `DIRECT_URL` (migrations) set as
-   separate env vars. Exact steps are in the README.
+7. Deploy: keep the committed schema on SQLite and swap the provider inside
+   the build command (`vercel.json` → `sed` + `prisma generate && next build`),
+   with `DATABASE_URL` (pooled) and `DIRECT_URL` as separate env vars. This is
+   how the live URL is built; exact steps are in the README.
 
 ## What I would do differently
 

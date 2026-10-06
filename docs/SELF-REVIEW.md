@@ -59,25 +59,39 @@ hidden), `/manager` as a guest → 307 to `/login`, `POST /api/smart-search` wit
 `GET /api/smart-search` → 405, malformed query `?priceMin=abc` → 200 with default
 filters (never crashes).
 
-## 2. Live URL or deploy blocker
+## 2. Live URL
 
-**Blocker: not deployed — no Vercel credentials exist in this environment**
-(`vercel` CLI not installed, no `~/.vercel`, no project token, no account I can
-log into without you). Stated rather than faked: there is no URL to share.
+**https://minimarketplace-six.vercel.app** — Vercel (project `minimarketplace`),
+database on Neon Postgres, seeded with the same 9 users / 24 assets / 10
+inquiries as local.
 
-What is delivered instead:
+How it runs on Postgres while the repo stays on SQLite (the constraint from
+`00-CONTEXT.md`):
 
-- README → **Deployment**: exact steps (Postgres datasource + `DIRECT_URL`,
-  `binaryTargets` for Amazon Linux, `vercel-build` with `prisma migrate deploy`,
-  env vars, one-time manual seed, first-deploy commands, post-deploy check).
-- ARCHITECTURE → **SQLite → Postgres: exact sequence**: the seven concrete steps,
-  including which repository code changes when arrays become `text[]`.
-- **Verified end-to-end up to the blocker:** a Neon Postgres project was
-  provisioned, both connection strings (pooled + direct) tested from this
-  machine, `CREATE DATABASE` worked, and switching `provider` to `postgresql`
-  produced a clean baseline migration. The project was then reverted to SQLite
-  because `00-CONTEXT.md` fixes the dev stack ("Prisma + SQLite (dev), easy to
-  swap to Postgres — do not re-litigate").
+- `vercel.json` `buildCommand` rewrites `provider = "sqlite"` →
+  `"postgresql"` **inside the build container only**, then
+  `prisma generate && next build`. The committed schema, migrations and local
+  scripts are untouched; `npm run dev` / `npm run build` stay on SQLite.
+- Env on Vercel (`vercel env add … production`): `DATABASE_URL` (pooled),
+  `DIRECT_URL`, `AUTH_SECRET`.
+- Schema was applied to Neon with `prisma db execute` from a
+  `prisma migrate diff` baseline (identical to the earlier verified one), then
+  seeded once from this machine under a temporary provider swap that restored
+  itself — `npm test` ran green immediately after.
+- No `OPENAI_API_KEY` on purpose: smart search runs in its documented keyword
+  fallback.
+
+Verified against the live URL with curl: guest → `/buyer` 307 to `/login`;
+buyer login → `/buyer` 200, `/buyer/inquiries` 200, wrong role → own home;
+manager → `/manager` 200, `/manager/users` 200; `seller3` login refused with
+`code=account_suspended`; `/assets` renders **20 published assets** from Neon;
+`POST /api/smart-search` → 400 on bad body, 200 degraded, GET → 405.
+
+Live testing caught one real bug the local environment could not: `getToken` in
+`src/middleware.ts` was called without `secureCookie`, so on HTTPS it looked for
+`authjs.session-token` while Auth.js had issued `__Secure-authjs.session-token`
+(the decryption salt follows the cookie name) — every authenticated page read as
+anonymous. Fixed in the same deployment; the reason is in the commit message.
 
 ## 3. Self-review against the original task
 
@@ -138,13 +152,13 @@ What is delivered instead:
       the documented horizontal-scroll option, screenshots attached
       (`docs/screenshots/`)
 - [x] **10 tests/docs/deploy** — this document, `README`, `ARCHITECTURE`,
-      `DEMO.md`, deploy blocker + exact steps
+      `DEMO.md`, the live deployment (§2)
 
 ### Definition of Done (Task 10)
 
 - [x] `npm test` passes — 191 tests
 - [x] Fresh clone + README commands → working app locally (verified in `/tmp`)
-- [ ] Live URL accessible — **blocked**, documented in §2 above and in README
+- [x] Live URL accessible — https://minimarketplace-six.vercel.app (§2)
 - [x] `ARCHITECTURE.md` contains every required section: problem & roles, stack
       table with per-row justification, data-model diagram, all six trade-off
       decisions (SQLite → Postgres, inquiry direction, JSON vs join tables,
@@ -154,7 +168,7 @@ What is delivered instead:
 ### Output format (as requested)
 
 - [x] Test run summary with pass count — §1
-- [x] Live URL or deploy blocker — §2
+- [x] Live URL — §2
 - [x] Final self-review checklist — §3
 
 ## 4. Deviations, assumptions, and honest gaps
@@ -162,11 +176,12 @@ What is delivered instead:
 Deliberate deviations from a literal reading of the spec, all documented in
 `ARCHITECTURE.md`:
 
-1. **No live URL.** Documented blocker, not a stubbed one. Provisioning the
-   database was possible; deploying to your Vercel account is not.
-2. **SQLite stays the dev/test database** even though a Neon project exists —
-   `00-CONTEXT.md` fixes the stack. The Postgres path is written down and was
-   executed once against a real database.
+1. **No LLM key in production.** No provider key was provisioned for the
+   deployment, so on the live URL smart search always answers in keyword-fallback
+   mode — exactly the degraded path the unit tests pin.
+2. **SQLite stays the dev/test database** even though production runs on Neon —
+   `00-CONTEXT.md` fixes the dev stack. The swap lives only in the Vercel build
+   command (§2), so both coexist without touching the repo.
 3. **`notFound()` answers 200 + `noindex`.** Next.js streaming root layout; the
    404 screen itself renders. Not fixable without restructuring routes — noted
    as a limitation.
@@ -184,10 +199,15 @@ Deliberate deviations from a literal reading of the spec, all documented in
    assignment scope, listed under known limitations.
 
 Not done, and I would not claim it: an automated E2E suite (Playwright). The
-Crouch/CDP pass covered 17 routes × 2 viewports, role logins, console errors and
+CDP pass covered 17 routes × 2 viewports, role logins, console errors and
 page overflow, but it lives outside the repo and is not part of `npm test`.
 
 ## 5. Fastest way to verify this yourself
+
+Live (no setup): open **https://minimarketplace-six.vercel.app** and follow
+`docs/DEMO.md`.
+
+Locally:
 
 ```bash
 npm i && npx prisma migrate dev && npm run db:seed && npm run dev

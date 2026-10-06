@@ -8,6 +8,9 @@ each other's contacts**, and a manager moderates both sides.
 Demo accounts and the 5-minute script live in [`docs/DEMO.md`](docs/DEMO.md);
 design and trade-off rationale in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
+**Live: https://minimarketplace-six.vercel.app** (Vercel + Neon Postgres,
+same seed as local).
+
 ## Quick start
 
 ```bash
@@ -91,7 +94,7 @@ access goes through `lib/db/*` repositories (components never import `prisma`),
 mutations are server actions with `/api/smart-search` as the single REST
 endpoint, and no dependency was added beyond the ones the tasks specified.
 
-The final self-review for the assignment — test run summary, deploy blocker and
+The final self-review for the assignment — test run summary, live URL and
 the against-the-spec checklist — is in
 [docs/SELF-REVIEW.md](docs/SELF-REVIEW.md).
 
@@ -127,53 +130,33 @@ so `npm test` never touches `prisma/dev.db`. See
 
 ## Deployment
 
-**Not deployed — no Vercel credentials are available in this environment.** The
-blocker and the exact steps below are documented rather than faked:
+**Live: https://minimarketplace-six.vercel.app** — Vercel (project
+`minimarketplace`), database on Neon Postgres. The setup, so it can be repeated:
 
-1. **Postgres first.** Vercel's filesystem is ephemeral and cannot hold
-   `prisma/dev.db`. Set the Prisma datasource to
-   `provider = "postgresql"` with `url = env("DATABASE_URL")` and
-   `directUrl = env("DIRECT_URL")`, and create the baseline migration:
-
-   ```bash
-   npx prisma migrate dev --name postgres-baseline
-   ```
-
-   Step-by-step, including the repository edits for `text[]` arrays, is in
+1. **Postgres for the runtime.** Vercel's filesystem is ephemeral and cannot
+   hold `prisma/dev.db`. The schema was applied to a Neon project with
+   `prisma db execute` from a `prisma migrate diff` baseline generated from
+   `schema.prisma`, then seeded **once** from a local machine. The full
+   documented swap — `text[]` arrays, `directUrl`, migration flow — is in
    [SQLite → Postgres: exact sequence](docs/ARCHITECTURE.md#sqlite--postgres-exact-sequence).
-   _I ran this against a live Neon project: swapping `provider` and the two
-   URLs produced a clean baseline migration with no model changes._
-
-2. **Serverless runtime.** Add `binaryTargets = ["native", "rhel-openssl-3.0.x"]`
-   to the `generator` block in `prisma/schema.prisma`, otherwise the query
-   engine fails on Vercel's Amazon Linux.
-3. **Build with migrations in one command.** Add to `package.json`:
-
-   ```json
-   "vercel-build": "prisma generate && prisma migrate deploy && next build"
-   ```
-
-4. **Environment variables** — `DATABASE_URL` (pooled endpoint, for the runtime),
-   `DIRECT_URL` (direct endpoint, for `migrate deploy`), `AUTH_SECRET` and
-   `OPENAI_API_KEY` in Vercel → Project → Settings → Environment Variables for
-   _all_ environments. `AUTH_SECRET` must match the one used by the Credentials
-   provider.
-5. **Seed once, manually.** Do **not** run `npm run db:seed` on every deploy; it
-   is idempotent but would overwrite demo edits. Run it from a local machine
-   against the production `DATABASE_URL` only when you want the demo dataset.
-6. **First deploy:**
-
-   ```bash
-   npx vercel link
-   npx vercel env pull .env.local
-   npx vercel --prod
-   ```
-
-   Or push to `main` and let Vercel's Git integration build it.
-
-7. **Post-deploy check:** open `/`, `/assets`, `/login`; sign in as
-   `manager@n5deal.test` and confirm `/manager/users` loads — a missing
-   `prisma migrate deploy` in the build step shows up as a Prisma error there.
+2. **Build-time provider swap.** The repo stays on SQLite for local dev;
+   `vercel.json` rewrites `provider = "sqlite"` → `"postgresql"` inside the
+   build container only, then runs `prisma generate && next build`. The
+   committed schema, migrations and `npm run dev` / `npm run build` are
+   untouched.
+3. **Environment variables** — set with `npx vercel env add … production`:
+   `DATABASE_URL` (pooled Neon endpoint, runtime), `DIRECT_URL` (direct
+   endpoint, one-off schema work), `AUTH_SECRET` (fresh value — without it
+   Auth.js refuses every login). `OPENAI_API_KEY` is intentionally absent:
+   smart search falls back to keyword mode, as documented.
+4. **Seed once, manually.** Do **not** run `npm run db:seed` on every deploy —
+   it would overwrite demo edits. Re-seed only when you want a fresh dataset:
+   point a local `DATABASE_URL` at Neon and run it once.
+5. **Deploy:** `npx vercel --prod` (the directory is already `vercel link`ed),
+   or push to `main` and let Vercel's Git integration build it.
+6. **Post-deploy check:** guest → `/buyer` redirects to `/login`; buyer and
+   manager sign in and load their dashboards; `seller3@n5deal.test` is refused
+   with `account_suspended`; `/assets` shows 20 published listings from Neon.
 
 ## Screenshots
 

@@ -12,6 +12,8 @@ sessions do not overwrite each other's cookie.
 
 ## 0. Warm-up (20 s)
 
+Live alternative: open **https://minimarketplace-six.vercel.app** — same seed, no setup.
+
 ```bash
 npm run dev   # http://localhost:3000
 ```
